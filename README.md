@@ -19,7 +19,7 @@ A simple timer
 
 DEMO -> [https://i-tabu.github.io/timer](https://i-tabu.github.io/timer)
 
-#Request
+## Request
 A simplet HRTP Request Sender
 
 DEMO -> [https://i-tabu.github.io/request](https://i-tabu.github.io/request) 
