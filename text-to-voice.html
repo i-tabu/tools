@@ -26,25 +26,29 @@
       justify-content: end;
       gap: 10px;
     }
+    #textInput {
+      font-size:2.2rem;
+    }
   </style>
 </head>
 <body>
   <div class="app-container">
-    <h2 class="mb-4 text-center">Text to Speech</h2>
-
-    <div class="mb-3">
-      <label for="voiceSelect" class="form-label">Select Voice</label>
-      <select id="voiceSelect" class="form-select"></select>
-    </div>
+    <h5 class="mb-2 text-center">Text to Speech</h5>
 
     <div class="mb-3">
       <textarea id="textInput" autofocus class="form-control" rows="6" placeholder="Type something here... (Press Enter to Speak, Shift+Enter for newline)"></textarea>
     </div>
 
-    <div class="btn-group">
+    <div class="btn-group mb-3">
       <button class="btn btn-secondary" onclick="clearText()">Clear</button>
       <button class="btn btn-primary" onclick="speakText()">Speak</button>
     </div>
+    
+    <div class="">
+      <label for="voiceSelect" class="form-label">Select Voice</label>
+      <select id="voiceSelect" class="form-select"></select>
+    </div>
+
   </div>
 
   <script>
