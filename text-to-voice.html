@@ -96,6 +96,10 @@
         e.preventDefault();
         speakText();
       }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        clearText();
+      }
     });
 
     // Trigger voices loading (needed for some browsers)
