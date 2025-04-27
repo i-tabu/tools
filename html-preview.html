@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>HTML Previewer - Final Version</title>
+  <title>HTML Previewer - Final Fixed</title>
   
   <!-- Bootstrap 5 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -11,7 +11,7 @@
   <!-- CodeMirror -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
-  
+
   <style>
     body {
       background-color: #121212;
@@ -19,18 +19,25 @@
       transition: background-color 0.3s, color 0.3s;
     }
     #previewArea {
-      background: #1e1e1e;
+      background: #ffffff; /* Set white background for preview area */
       min-height: 400px;
       border-radius: 0.5rem;
-      box-shadow: 0 0 10px rgba(255,255,255,0.05);
-      overflow: auto;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      overflow: hidden;
       position: relative;
       transition: background-color 0.3s;
+    }
+    #previewIframe {
+      width: 100%;
+      min-height: 400px;
+      border: none;
+      border-radius: 0.5rem;
+      background: white;
     }
     .CodeMirror {
       height: 400px;
       border-radius: 0.5rem;
-      box-shadow: 0 0 10px rgba(255,255,255,0.05);
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
       transition: background-color 0.3s, color 0.3s;
     }
     .open-new-window-btn {
@@ -46,7 +53,7 @@
       color: #e0e0e0 !important;
     }
     .dark-mode #previewArea {
-      background-color: #1e1e1e;
+      background-color: #ffffff; /* Keep preview white even in dark mode */
     }
   </style>
 </head>
@@ -76,7 +83,9 @@
         <div class="card-body">
           <h5 class="card-title text-center mb-3">Preview</h5>
           <button id="toggleNewWindow" class="btn btn-outline-secondary btn-sm open-new-window-btn">Open in New Window</button>
-          <div id="previewArea" class="p-3"></div>
+          <div id="previewArea" class="p-0">
+            <iframe id="previewIframe"></iframe>
+          </div>
         </div>
       </div>
     </div>
@@ -90,64 +99,76 @@
     let liveSync = false;
     let darkMode = true;
 
+    const defaultHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bootstrap 5 Example with Row/Col</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container py-5">
+    <div class="row">
+      <div class="col text-center">
+        <h1 class="text-primary">Bootstrap 5 Preview</h1>
+        <p class="lead">This uses a row and single column!</p>
+        <button class="btn btn-success mt-3">Bootstrap Button</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
     // Initialize CodeMirror
     const editor = CodeMirror.fromTextArea(document.getElementById('htmlInput'), {
-      mode: 'htmlmixed',          // Proper syntax highlighting for HTML
-      theme: 'dracula',            // Dark mode theme
+      mode: 'htmlmixed',
+      theme: 'dracula',
       lineNumbers: true,
       autofocus: true,
-      indentUnit: 2,               // 2 spaces per indent
+      indentUnit: 2,
       tabSize: 2,
-      indentWithTabs: false,       // Insert spaces instead of tabs
+      indentWithTabs: false,
       extraKeys: {
-        "Tab": function(cm) {       // When Tab is pressed, insert spaces
+        "Tab": function(cm) {
           if (cm.somethingSelected()) {
             cm.indentSelection("add");
           } else {
             cm.replaceSelection(Array(cm.getOption("indentUnit") + 1).join(" "), "end", "+input");
           }
         },
-        "Enter": "newlineAndIndent" // Auto-indent on Enter
+        "Enter": "newlineAndIndent"
       }
     });
 
-    // Set default HTML
-    editor.setValue(`<!DOCTYPE html>
-<html>
-<head>
-  <title>Sample</title>
-</head>
-<body>
-  <h1>Hello World!</h1>
-  <p>This is a simple HTML preview.</p>
-</body>
-</html>`);
+    editor.setValue(defaultHTML);
 
-    // Function to update preview
     function updatePreview() {
       const htmlContent = editor.getValue();
       if (previewWindow && !previewWindow.closed) {
         previewWindow.document.getElementById('previewContent').innerHTML = htmlContent;
       } else {
-        document.getElementById('previewArea').innerHTML = htmlContent;
+        const iframe = document.getElementById('previewIframe');
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+        doc.open();
+        doc.write(htmlContent);
+        doc.close();
       }
     }
 
-    // Manual Preview Button
     document.getElementById('previewButton').addEventListener('click', function() {
       updatePreview();
     });
 
-    // Clear Button
     document.getElementById('clearButton').addEventListener('click', function() {
       editor.setValue('');
-      document.getElementById('previewArea').innerHTML = '';
+      const iframe = document.getElementById('previewIframe');
+      iframe.srcdoc = "";
       if (previewWindow && !previewWindow.closed) {
         previewWindow.close();
       }
     });
 
-    // Live Sync Toggle
     document.getElementById('liveSyncButton').addEventListener('click', function() {
       liveSync = !liveSync;
       this.textContent = liveSync ? 'Disable Live Sync' : 'Enable Live Sync';
@@ -156,21 +177,18 @@
       if (liveSync) updatePreview();
     });
 
-    // Editor change
     editor.on('change', function() {
       if (liveSync) {
         updatePreview();
       }
     });
 
-    // Dark Mode Toggle
     document.getElementById('darkModeButton').addEventListener('click', function() {
       darkMode = !darkMode;
       document.body.classList.toggle('dark-mode');
       editor.setOption('theme', darkMode ? 'dracula' : 'eclipse');
     });
 
-    // Open in New Window
     document.getElementById('toggleNewWindow').addEventListener('click', function() {
       const htmlContent = editor.getValue();
 
@@ -196,12 +214,10 @@
         `);
         previewWindow.document.close();
 
-        // Hide preview pane and expand editor
         document.getElementById('previewPane').classList.add('hidden');
         document.getElementById('editorPane').classList.remove('col-md-6');
         document.getElementById('editorPane').classList.add('col-md-12');
 
-        // Monitor window close
         let timer = setInterval(function() {
           if (previewWindow.closed) {
             clearInterval(timer);
@@ -213,6 +229,11 @@
       } else {
         previewWindow.focus();
       }
+    });
+
+    // Initial load into iframe
+    window.addEventListener('DOMContentLoaded', function() {
+      updatePreview();
     });
 
   </script>
