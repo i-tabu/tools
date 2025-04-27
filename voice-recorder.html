@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voice Recorder with Spectrogram</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: #f8f9fa;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      padding: 20px;
+    }
+    .btn-large {
+      font-size: 1.5rem;
+      padding: 1rem 2rem;
+    }
+    #visualizer {
+      width: 100%;
+      height: 100px;
+      background: #dee2e6;
+      margin-top: 20px;
+      display: none;
+    }
+    #recordingsList {
+      margin-top: 30px;
+      width: 100%;
+      text-align: center;
+    }
+    .recording-entry {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .recording-entry p {
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <h1 class="mb-4">Voice Recorder</h1>
+  <button id="recordButton" class="btn btn-primary btn-large">Start Recording</button>
+  <canvas id="visualizer"></canvas>
+  <div id="recordingsList" class="list-group"></div>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+    let audioContext;
+    let analyser;
+    let dataArray;
+    let animationId;
+
+    const recordButton = document.getElementById('recordButton');
+    const visualizer = document.getElementById('visualizer');
+    const recordingsList = document.getElementById('recordingsList');
+
+    recordButton.addEventListener('click', async () => {
+      if (recordButton.innerText === 'Start Recording') {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioContext.createMediaStreamSource(stream);
+        analyser = audioContext.createAnalyser();
+        source.connect(analyser);
+        analyser.fftSize = 256;
+        const bufferLength = analyser.frequencyBinCount;
+        dataArray = new Uint8Array(bufferLength);
+
+        visualizer.style.display = 'block';
+        draw();
+
+        mediaRecorder.start();
+        recordButton.innerText = 'Stop Recording';
+        recordButton.classList.remove('btn-primary');
+        recordButton.classList.add('btn-danger');
+
+        audioChunks = [];
+
+        mediaRecorder.addEventListener('dataavailable', event => {
+          audioChunks.push(event.data);
+        });
+
+        mediaRecorder.addEventListener('stop', () => {
+          cancelAnimationFrame(animationId);
+          visualizer.style.display = 'none';
+          const audioBlob = new Blob(audioChunks);
+          const audioUrl = URL.createObjectURL(audioBlob);
+
+          const recordingEntry = document.createElement('div');
+          recordingEntry.className = 'recording-entry';
+
+          const date = new Date();
+          const dateTime = date.toLocaleString();
+
+          const dateTimeLabel = document.createElement('p');
+          dateTimeLabel.textContent = dateTime;
+
+          const audio = document.createElement('audio');
+          audio.controls = true;
+          audio.src = audioUrl;
+
+          const downloadButton = document.createElement('a');
+          downloadButton.className = 'btn btn-sm btn-outline-primary';
+          downloadButton.textContent = 'Download';
+          downloadButton.href = audioUrl;
+          downloadButton.download = `recording-${date.getTime()}.webm`;
+
+          const deleteButton = document.createElement('button');
+          deleteButton.className = 'btn btn-sm btn-outline-danger';
+          deleteButton.textContent = 'Delete';
+          deleteButton.onclick = () => recordingEntry.remove();
+
+          recordingEntry.appendChild(dateTimeLabel);
+          recordingEntry.appendChild(audio);
+          recordingEntry.appendChild(downloadButton);
+          recordingEntry.appendChild(deleteButton);
+
+          recordingsList.appendChild(recordingEntry);
+        });
+
+      } else {
+        mediaRecorder.stop();
+        recordButton.innerText = 'Start Recording';
+        recordButton.classList.remove('btn-danger');
+        recordButton.classList.add('btn-primary');
+      }
+    });
+
+    function draw() {
+      const canvasCtx = visualizer.getContext('2d');
+      const WIDTH = visualizer.width = visualizer.offsetWidth;
+      const HEIGHT = visualizer.height = visualizer.offsetHeight;
+
+      function drawVisualizer() {
+        animationId = requestAnimationFrame(drawVisualizer);
+
+        analyser.getByteFrequencyData(dataArray);
+
+        canvasCtx.fillStyle = '#dee2e6';
+        canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+
+        const barWidth = (WIDTH / dataArray.length) * 2.5;
+        let barHeight;
+        let x = 0;
+
+        for (let i = 0; i < dataArray.length; i++) {
+          barHeight = dataArray[i];
+
+          canvasCtx.fillStyle = '#007bff';
+          canvasCtx.fillRect(x, HEIGHT - barHeight / 2, barWidth, barHeight / 2);
+
+          x += barWidth + 1;
+        }
+      }
+
+      drawVisualizer();
+    }
+  </script>
+
+</body>
+</html>
