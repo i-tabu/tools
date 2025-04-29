@@ -59,6 +59,20 @@
     let dataArray;
     let animationId;
 
+    const user_device = (() => {
+      const ua = navigator.userAgent;
+      if (/Mobi|Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(ua)) {
+        return 'mobile';
+      } else if (/Windows|Macintosh|Linux|X11/i.test(ua)) {
+        return 'desktop';
+      } else {
+        return 'other';
+      }
+    })();
+
+    console.log(user_device); // It will print "mobile", "desktop", or "other"
+
+
     const recordButton = document.getElementById('recordButton');
     const visualizer = document.getElementById('visualizer');
     const recordingsList = document.getElementById('recordingsList');
@@ -89,6 +103,27 @@
         mediaRecorder.addEventListener('dataavailable', event => {
           audioChunks.push(event.data);
         });
+
+        const shareButton = document.createElement('button');
+        shareButton.className = 'btn btn-sm btn-outline-success';
+        shareButton.textContent = 'Share';
+        shareButton.onclick = async () => {
+          try {
+            const file = new File([audioBlob], `recording-${date.getTime()}.webm`, { type: 'audio/webm' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+              await navigator.share({
+                files: [file],
+                title: 'Voice Recording',
+                text: 'Check out my recording!',
+              });
+            } else {
+              alert('Sharing not supported on this browser.');
+            }
+          } catch (error) {
+            console.error('Sharing failed', error);
+          }
+        };
 
         mediaRecorder.addEventListener('stop', () => {
           cancelAnimationFrame(animationId);
@@ -124,6 +159,12 @@
           recordingEntry.appendChild(audio);
           recordingEntry.appendChild(downloadButton);
           recordingEntry.appendChild(deleteButton);
+
+          //add only if device is mobile
+          if(user_device == "mobile") {
+            recordingEntry.appendChild(shareButton);
+          }
+          
 
           recordingsList.prepend(recordingEntry);
         });
