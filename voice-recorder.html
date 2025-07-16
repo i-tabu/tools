@@ -104,27 +104,6 @@
           audioChunks.push(event.data);
         });
 
-        const shareButton = document.createElement('button');
-        shareButton.className = 'btn btn-sm btn-outline-success';
-        shareButton.textContent = 'Share';
-        shareButton.onclick = async () => {
-          try {
-            const file = new File([audioBlob], `recording-${date.getTime()}.webm`, { type: 'audio/webm' });
-
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-              await navigator.share({
-                files: [file],
-                title: 'Voice Recording',
-                text: 'Check out my recording!',
-              });
-            } else {
-              alert('Sharing not supported on this browser.');
-            }
-          } catch (error) {
-            console.error('Sharing failed', error);
-          }
-        };
-
         mediaRecorder.addEventListener('stop', () => {
           cancelAnimationFrame(animationId);
           visualizer.style.display = 'none';
@@ -154,6 +133,27 @@
           deleteButton.className = 'btn btn-sm btn-outline-danger';
           deleteButton.textContent = 'Delete';
           deleteButton.onclick = () => recordingEntry.remove();
+
+          const shareButton = document.createElement('button');
+          shareButton.className = 'btn btn-sm btn-outline-success';
+          shareButton.textContent = 'Share';
+          shareButton.onclick = async () => {
+            try {
+              const file = new File([audioBlob], `recording-${date.getTime()}.webm`, { type: 'audio/webm' });
+
+              if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                  files: [file],
+                  title: 'Voice Recording',
+                  text: 'Check out my recording!',
+                });
+              } else {
+                alert('Sharing not supported on this browser.');
+              }
+            } catch (error) {
+              console.error('Sharing failed', error);
+            }
+          };
 
           recordingEntry.appendChild(dateTimeLabel);
           recordingEntry.appendChild(audio);
