@@ -47,6 +47,7 @@
 <body>
 
   <h1 class="mb-4">Voice Recorder</h1>
+  <button id="authButton" class="btn btn-outline-secondary mb-3" disabled>Connect Google Drive</button>
   <button id="recordButton" class="btn btn-primary btn-large">Start Recording</button>
   <canvas id="visualizer"></canvas>
   <div id="recordingsList" class="list-group"></div>
@@ -58,6 +59,63 @@
     let analyser;
     let dataArray;
     let animationId;
+
+    // Google Drive integration
+    const CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID';
+    const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+    let tokenClient;
+    let accessToken = null;
+    let gapiInited = false;
+    let gisInited = false;
+
+    const authButton = document.getElementById('authButton');
+    authButton.onclick = handleAuthClick;
+    authButton.disabled = true;
+
+    function gapiLoaded() {
+      gapi.load('client', initializeGapiClient);
+    }
+
+    async function initializeGapiClient() {
+      await gapi.client.init({});
+      gapiInited = true;
+      maybeEnableAuth();
+    }
+
+    function gisLoaded() {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: ''
+      });
+      gisInited = true;
+      maybeEnableAuth();
+    }
+
+    function maybeEnableAuth() {
+      if (gapiInited && gisInited) {
+        authButton.disabled = false;
+      }
+    }
+
+    function handleAuthClick() {
+      if (accessToken === null) {
+        tokenClient.callback = (resp) => {
+          if (resp.error !== undefined) {
+            console.error(resp);
+            return;
+          }
+          accessToken = resp.access_token;
+          authButton.textContent = 'Disconnect Google Drive';
+        };
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+      } else {
+        google.accounts.oauth2.revoke(accessToken, () => {
+          accessToken = null;
+          authButton.textContent = 'Connect Google Drive';
+        });
+      }
+    }
 
     const user_device = (() => {
       const ua = navigator.userAgent;
@@ -134,6 +192,53 @@
           deleteButton.textContent = 'Delete';
           deleteButton.onclick = () => recordingEntry.remove();
 
+          const driveButton = document.createElement('button');
+          driveButton.className = 'btn btn-sm btn-outline-warning';
+          driveButton.textContent = 'Upload to Drive';
+          let uploadedFileId = null;
+          driveButton.onclick = async () => {
+            if (!accessToken) {
+              alert('Please connect your Google Drive account first.');
+              return;
+            }
+            driveButton.disabled = true;
+            if (!uploadedFileId) {
+              try {
+                const metadata = { name: `recording-${date.getTime()}.webm` };
+                const form = new FormData();
+                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                form.append('file', audioBlob);
+                const resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+                  method: 'POST',
+                  headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
+                  body: form
+                });
+                const data = await resp.json();
+                uploadedFileId = data.id;
+                driveButton.textContent = 'Remove from Drive';
+              } catch (err) {
+                console.error('Upload failed', err);
+                alert('Failed to upload');
+              } finally {
+                driveButton.disabled = false;
+              }
+            } else {
+              try {
+                await fetch(`https://www.googleapis.com/drive/v3/files/${uploadedFileId}`, {
+                  method: 'DELETE',
+                  headers: new Headers({ 'Authorization': 'Bearer ' + accessToken })
+                });
+                uploadedFileId = null;
+                driveButton.textContent = 'Upload to Drive';
+              } catch (err) {
+                console.error('Delete failed', err);
+                alert('Failed to delete');
+              } finally {
+                driveButton.disabled = false;
+              }
+            }
+          };
+
           const shareButton = document.createElement('button');
           shareButton.className = 'btn btn-sm btn-outline-success';
           shareButton.textContent = 'Share';
@@ -159,6 +264,7 @@
           recordingEntry.appendChild(audio);
           recordingEntry.appendChild(downloadButton);
           recordingEntry.appendChild(deleteButton);
+          recordingEntry.appendChild(driveButton);
 
           //add only if device is mobile
           if(user_device == "mobile") {
@@ -207,6 +313,9 @@
       drawVisualizer();
     }
   </script>
+
+  <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" async defer></script>
+  <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" async defer></script>
 
 </body>
 </html>
