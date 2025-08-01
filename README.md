@@ -1,4 +1,4 @@
-# Tools
+# i-tabu / Tools
 List of all the simple tools (mostly simple quick utilities, mostly for personal use and just to pass my time :) )
 
 TOOLS -> [https://i-tabu.github.io/tools/](https://i-tabu.github.io/tools/)
