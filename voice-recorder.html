@@ -167,7 +167,7 @@
         mediaRecorder.addEventListener('stop', () => {
           cancelAnimationFrame(animationId);
           visualizer.style.display = 'none';
-          const audioBlob = new Blob(audioChunks);
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
           const audioUrl = URL.createObjectURL(audioBlob);
 
           const recordingEntry = document.createElement('div');
@@ -197,6 +197,13 @@
           const driveButton = document.createElement('button');
           driveButton.className = 'btn btn-sm btn-outline-warning';
           driveButton.textContent = 'Upload to Drive';
+
+          const openDriveButton = document.createElement('a');
+          openDriveButton.className = 'btn btn-sm btn-outline-info';
+          openDriveButton.textContent = 'Open in Drive';
+          openDriveButton.target = '_blank';
+          openDriveButton.style.display = 'none';
+
           let uploadedFileId = null;
           driveButton.onclick = async () => {
             if (!accessToken) {
@@ -206,7 +213,7 @@
             driveButton.disabled = true;
             if (!uploadedFileId) {
               try {
-                const metadata = { name: `recording-${date.getTime()}.webm` };
+                const metadata = { name: `recording-${date.getTime()}.webm`, mimeType: 'audio/webm' };
                 const form = new FormData();
                 form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
                 form.append('file', audioBlob);
@@ -216,8 +223,13 @@
                   body: form
                 });
                 const data = await resp.json();
+                if (!resp.ok || !data.id) {
+                  throw new Error(data.error?.message || 'Upload failed');
+                }
                 uploadedFileId = data.id;
                 driveButton.textContent = 'Remove from Drive';
+                openDriveButton.href = `https://drive.google.com/file/d/${uploadedFileId}/view`;
+                openDriveButton.style.display = 'inline-block';
               } catch (err) {
                 console.error('Upload failed', err);
                 alert('Failed to upload');
@@ -226,12 +238,17 @@
               }
             } else {
               try {
-                await fetch(`https://www.googleapis.com/drive/v3/files/${uploadedFileId}`, {
+                const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${uploadedFileId}`, {
                   method: 'DELETE',
                   headers: new Headers({ 'Authorization': 'Bearer ' + accessToken })
                 });
+                if (!resp.ok) {
+                  throw new Error('Delete failed');
+                }
                 uploadedFileId = null;
                 driveButton.textContent = 'Upload to Drive';
+                openDriveButton.style.display = 'none';
+                openDriveButton.removeAttribute('href');
               } catch (err) {
                 console.error('Delete failed', err);
                 alert('Failed to delete');
@@ -267,6 +284,7 @@
           recordingEntry.appendChild(downloadButton);
           recordingEntry.appendChild(deleteButton);
           recordingEntry.appendChild(driveButton);
+          recordingEntry.appendChild(openDriveButton);
 
           //add only if device is mobile
           if(user_device == "mobile") {
