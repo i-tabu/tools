@@ -62,7 +62,8 @@
 
     // Google Drive integration
     // OAuth client ID for Google Drive integration
-    const CLIENT_ID = '1001017008332-peajlj58k24flbk6q9b8s618mf934uv3.apps.googleusercontent.com';
+    //const CLIENT_ID = '1001017008332-peajlj58k24flbk6q9b8s618mf934uv3.apps.googleusercontent.com';//for production
+    const CLIENT_ID = '438652793993-urmdgv7da75k9fbfchmir3a6hjm4h92r.apps.googleusercontent.com';//for test
     const SCOPES = 'https://www.googleapis.com/auth/drive.file';
     let tokenClient;
     let accessToken = null;
@@ -337,4 +338,12 @@
   <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" async defer></script>
 
 </body>
+<footer style="text-align: center; font-size: 0.9em; margin-top: 2em; padding: 1em 0; color: #555;">
+  <p>
+    <a href="https://i-tabu.github.io/tools/terms.html" target="_blank" style="margin-right: 1em;">Terms of Service</a>
+    <a href="https://i-tabu.github.io/tools/privacy.html" target="_blank">Privacy Policy</a>
+  </p>
+  <p style="margin-top: 0.5em;">© 2025 i-Tabu Tool</p>
+</footer>
+
 </html>
