@@ -16,21 +16,86 @@
 <body class="p-4">
   <div class="container">
     <h2 class="mb-4">Image Cropper Tool</h2>
+    <button id="authButton" class="btn btn-outline-secondary mb-3" disabled>Connect Google Drive</button>
     <input type="file" id="imageInput" class="form-control mb-3" accept="image/*">
     <div class="text-center">
       <img id="imagePreview" class="img-fluid" style="display:none;">
     </div>
-    <div class="mt-3 d-flex justify-content-between">
+    <div class="mt-3 d-flex justify-content-between align-items-center">
       <button id="cropButton" class="btn btn-primary" disabled>Crop & Download</button>
+      <div>
+        <button id="driveButton" class="btn btn-outline-warning ms-2" disabled>Upload to Drive</button>
+        <a id="openDriveButton" class="btn btn-outline-info ms-2" target="_blank" style="display:none;">Open in Drive</a>
+      </div>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.js"></script>
   <script>
     let cropper;
+    let croppedBlob = null;
+    let uploadedFileId = null;
     const imageInput = document.getElementById('imageInput');
     const imagePreview = document.getElementById('imagePreview');
     const cropButton = document.getElementById('cropButton');
+    const driveButton = document.getElementById('driveButton');
+    const openDriveButton = document.getElementById('openDriveButton');
+    const authButton = document.getElementById('authButton');
+
+    // Google Drive integration
+    const CLIENT_ID = '1001017008332-peajlj58k24flbk6q9b8s618mf934uv3.apps.googleusercontent.com'; // for production
+    const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+    let tokenClient;
+    let accessToken = null;
+    let gapiInited = false;
+    let gisInited = false;
+
+    function gapiLoaded() {
+      gapi.load('client', initializeGapiClient);
+    }
+
+    async function initializeGapiClient() {
+      await gapi.client.init({});
+      gapiInited = true;
+      maybeEnableAuth();
+    }
+
+    function gisLoaded() {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: ''
+      });
+      gisInited = true;
+      maybeEnableAuth();
+    }
+
+    function maybeEnableAuth() {
+      if (gapiInited && gisInited) {
+        authButton.disabled = false;
+      }
+    }
+
+    authButton.onclick = handleAuthClick;
+
+    function handleAuthClick() {
+      if (accessToken === null) {
+        tokenClient.callback = (resp) => {
+          if (resp.error !== undefined) {
+            console.error(resp);
+            return;
+          }
+          accessToken = resp.access_token;
+          authButton.textContent = 'Disconnect Google Drive';
+        };
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+      } else {
+        google.accounts.oauth2.revoke(accessToken, () => {
+          accessToken = null;
+          authButton.textContent = 'Connect Google Drive';
+        });
+      }
+    }
 
     imageInput.addEventListener('change', (event) => {
       const file = event.target.files[0];
@@ -54,12 +119,78 @@
     cropButton.addEventListener('click', () => {
       if (cropper) {
         const canvas = cropper.getCroppedCanvas();
-        const link = document.createElement('a');
-        link.download = 'cropped-image.png';
-        link.href = canvas.toDataURL();
-        link.click();
+        canvas.toBlob((blob) => {
+          croppedBlob = blob;
+          uploadedFileId = null;
+          driveButton.textContent = 'Upload to Drive';
+          driveButton.disabled = false;
+          openDriveButton.style.display = 'none';
+          openDriveButton.removeAttribute('href');
+
+          const link = document.createElement('a');
+          link.download = 'cropped-image.png';
+          link.href = canvas.toDataURL();
+          link.click();
+        }, 'image/png');
+      }
+    });
+
+    driveButton.addEventListener('click', async () => {
+      if (!croppedBlob) return;
+      if (!accessToken) {
+        alert('Please connect your Google Drive account first.');
+        return;
+      }
+      driveButton.disabled = true;
+      if (!uploadedFileId) {
+        try {
+          const metadata = { name: `cropped-image-${Date.now()}.png`, mimeType: 'image/png' };
+          const form = new FormData();
+          form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+          form.append('file', croppedBlob);
+          const resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+            method: 'POST',
+            headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
+            body: form
+          });
+          const data = await resp.json();
+          if (!resp.ok || !data.id) {
+            throw new Error(data.error?.message || 'Upload failed');
+          }
+          uploadedFileId = data.id;
+          driveButton.textContent = 'Remove from Drive';
+          openDriveButton.href = `https://drive.google.com/file/d/${uploadedFileId}/view`;
+          openDriveButton.style.display = 'inline-block';
+        } catch (err) {
+          console.error('Upload failed', err);
+          alert('Failed to upload');
+        } finally {
+          driveButton.disabled = false;
+        }
+      } else {
+        try {
+          const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${uploadedFileId}`, {
+            method: 'DELETE',
+            headers: new Headers({ 'Authorization': 'Bearer ' + accessToken })
+          });
+          if (!resp.ok) {
+            throw new Error('Delete failed');
+          }
+          uploadedFileId = null;
+          driveButton.textContent = 'Upload to Drive';
+          openDriveButton.style.display = 'none';
+          openDriveButton.removeAttribute('href');
+        } catch (err) {
+          console.error('Delete failed', err);
+          alert('Failed to delete');
+        } finally {
+          driveButton.disabled = false;
+        }
       }
     });
   </script>
+
+  <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" async defer></script>
+  <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" async defer></script>
 </body>
 </html>
