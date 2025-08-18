@@ -137,10 +137,35 @@
     const visualizer = document.getElementById('visualizer');
     const recordingsList = document.getElementById('recordingsList');
 
+    async function ensureItabuFolder() {
+      const q = "name='itabu-tools' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+      const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`, {
+        headers: new Headers({ 'Authorization': 'Bearer ' + accessToken })
+      });
+      const data = await resp.json();
+      if (data.files && data.files.length > 0) {
+        return data.files[0].id;
+      }
+      const createResp = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: new Headers({
+          'Authorization': 'Bearer ' + accessToken,
+          'Content-Type': 'application/json'
+        }),
+        body: JSON.stringify({
+          name: 'itabu-tools',
+          mimeType: 'application/vnd.google-apps.folder'
+        })
+      });
+      const createData = await createResp.json();
+      return createData.id;
+    }
+
     recordButton.addEventListener('click', async () => {
       if (recordButton.innerText === 'Start Recording') {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/mp4';
+        mediaRecorder = new MediaRecorder(stream, { mimeType });
 
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const source = audioContext.createMediaStreamSource(stream);
@@ -167,17 +192,19 @@
         mediaRecorder.addEventListener('stop', () => {
           cancelAnimationFrame(animationId);
           visualizer.style.display = 'none';
-          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const mimeType = mediaRecorder.mimeType;
+          const extension = mimeType.includes('webm') ? 'webm' : 'mp4';
+          const audioBlob = new Blob(audioChunks, { type: mimeType });
           const audioUrl = URL.createObjectURL(audioBlob);
 
           const recordingEntry = document.createElement('div');
           recordingEntry.className = 'recording-entry';
 
           const date = new Date();
-          const dateTime = date.toLocaleString();
+          const timestamp = `${date.getFullYear()}${String(date.getMonth()+1).padStart(2,'0')}${String(date.getDate()).padStart(2,'0')}-${String(date.getHours()).padStart(2,'0')}${String(date.getMinutes()).padStart(2,'0')}${String(date.getSeconds()).padStart(2,'0')}`;
 
           const dateTimeLabel = document.createElement('p');
-          dateTimeLabel.textContent = dateTime;
+          dateTimeLabel.textContent = timestamp;
 
           const audio = document.createElement('audio');
           audio.controls = true;
@@ -187,7 +214,7 @@
           downloadButton.className = 'btn btn-sm btn-outline-primary';
           downloadButton.textContent = 'Download';
           downloadButton.href = audioUrl;
-          downloadButton.download = `recording-${date.getTime()}.webm`;
+          downloadButton.download = `recording-${timestamp}.${extension}`;
 
           const deleteButton = document.createElement('button');
           deleteButton.className = 'btn btn-sm btn-outline-danger';
@@ -213,7 +240,8 @@
             driveButton.disabled = true;
             if (!uploadedFileId) {
               try {
-                const metadata = { name: `recording-${date.getTime()}.webm`, mimeType: 'audio/webm' };
+                const folderId = await ensureItabuFolder();
+                const metadata = { name: `recording-${timestamp}.${extension}`, mimeType: mimeType, parents: [folderId] };
                 const form = new FormData();
                 form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
                 form.append('file', audioBlob);
@@ -263,7 +291,7 @@
           shareButton.textContent = 'Share';
           shareButton.onclick = async () => {
             try {
-              const file = new File([audioBlob], `recording-${date.getTime()}.webm`, { type: 'audio/webm' });
+              const file = new File([audioBlob], `recording-${timestamp}.${extension}`, { type: mimeType });
 
               if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({
