@@ -135,6 +135,30 @@
       }
     });
 
+    async function ensureItabuFolder() {
+      const q = "name='itabu-tools' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+      const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`, {
+        headers: new Headers({ 'Authorization': 'Bearer ' + accessToken })
+      });
+      const data = await resp.json();
+      if (data.files && data.files.length > 0) {
+        return data.files[0].id;
+      }
+      const createResp = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: new Headers({
+          'Authorization': 'Bearer ' + accessToken,
+          'Content-Type': 'application/json'
+        }),
+        body: JSON.stringify({
+          name: 'itabu-tools',
+          mimeType: 'application/vnd.google-apps.folder'
+        })
+      });
+      const createData = await createResp.json();
+      return createData.id;
+    }
+
     driveButton.addEventListener('click', async () => {
       if (!croppedBlob) return;
       if (!accessToken) {
@@ -144,7 +168,8 @@
       driveButton.disabled = true;
       if (!uploadedFileId) {
         try {
-          const metadata = { name: `cropped-image-${Date.now()}.png`, mimeType: 'image/png' };
+          const folderId = await ensureItabuFolder();
+          const metadata = { name: `cropped-image-${Date.now()}.png`, mimeType: 'image/png', parents: [folderId] };
           const form = new FormData();
           form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
           form.append('file', croppedBlob);
