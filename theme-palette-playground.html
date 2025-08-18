@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Theme Palette Playground — Single File</title>
+  <style>
+    :root{
+      --bg:#ffffff;
+      --card:#f8fafc;
+      --text:#0f172a;
+      --muted:#64748b;
+      --primary:#4f46e5;
+      --primary-foreground:#ffffff;
+      --secondary:#22c55e;
+      --accent:#f97316;
+      --ring:#6366f1;
+      --radius:16px;
+      --font: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, sans-serif;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family:var(--font);
+      line-height:1.5;
+    }
+    .container{max-width:1120px;margin:0 auto;padding:24px}
+    .toolbar{
+      position: sticky; top:0; z-index:10;
+      backdrop-filter: blur(6px);
+      background: color-mix(in srgb, var(--card) 92%, transparent);
+      border:1px solid rgba(0,0,0,.08);
+      padding:12px 16px; border-radius:var(--radius);
+      display:flex; flex-wrap:wrap; gap:12px; align-items:center;
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    }
+    .toolbar .title{font-weight:600; font-size:18px; margin-right:auto}
+    .control{display:flex; align-items:center; gap:8px}
+    label{font-size:12px; opacity:.8}
+    select, input[type="text"]{
+      padding:8px 10px; border-radius:10px; border:1px solid rgba(0,0,0,.15);
+      background:#fff; color:#111; min-width:150px;
+    }
+    input[type="checkbox"]{width:18px; height:18px}
+    .grid{display:grid; gap:16px}
+    @media(min-width:900px){ .grid.cols-3{grid-template-columns:repeat(3, 1fr)} }
+    .card{
+      background:var(--card);
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:var(--radius);
+      box-shadow: 0 1px 2px rgba(0,0,0,.04);
+      padding:20px;
+    }
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:10px 14px; border-radius:var(--radius);
+      border:1px solid transparent; cursor:pointer; user-select:none;
+      font-weight:600;
+    }
+    .btn-primary{ background:var(--primary); color:var(--primary-foreground); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 25%, transparent) }
+    .btn-outline{ border-color:var(--primary); color:var(--primary); background:transparent }
+    .btn-secondary{ background:var(--secondary); color:var(--primary-foreground) }
+    .btn-ghost{ background:transparent; color:var(--accent) }
+    .row{display:flex; gap:10px; flex-wrap:wrap}
+    .input{ padding:10px 12px; border-radius:var(--radius); border:1px solid var(--ring); background:#fff; color:var(--text) }
+    .alert{ padding:12px; border-radius:var(--radius); background:#f1f5f9 }
+    .tokens{ display:grid; grid-template-columns:1fr; gap:10px }
+    @media(min-width:740px){ .tokens{ grid-template-columns: repeat(2, 1fr);} }
+    .token{ display:flex; align-items:center; justify-content:space-between; gap:10px; border:1px solid rgba(0,0,0,.08); border-radius:16px; padding:10px; background:#fff }
+    .token .chip{ width:28px; height:28px; border-radius:10px; border:1px solid rgba(0,0,0,.1) }
+    .muted{ color:var(--muted) }
+    pre{ margin:0; padding:10px; border-radius:12px; background: #0a0a0a10; overflow:auto; font-size:12px }
+    .tests .test{ display:flex; justify-content:space-between; align-items:center; border:1px solid rgba(0,0,0,.08); padding:8px 10px; border-radius:12px }
+    .pass{ color:#15803d } .fail{ color:#b91c1c }
+    .copy-btn{ border:1px solid rgba(0,0,0,.15); background:#fff; padding:6px 10px; border-radius:10px; cursor:pointer; font-size:12px }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="toolbar">
+      <div class="title">Theme Palette Playground (Single-file)</div>
+      <div class="control">
+        <label for="palette">Palette</label>
+        <select id="palette"></select>
+      </div>
+      <div class="control">
+        <label for="fontSel">Font</label>
+        <select id="fontSel"></select>
+      </div>
+      <div class="control">
+        <label for="rounded">Rounded</label>
+        <input type="checkbox" id="rounded" checked>
+      </div>
+      <div class="control">
+        <label for="dark">Dark</label>
+        <input type="checkbox" id="dark">
+      </div>
+    </div>
+
+    <div class="grid cols-3" style="margin-top:16px">
+      <div class="card">
+        <div>
+          <div style="font-size:28px; font-weight:800; letter-spacing:-.02em">Product Heading</div>
+          <div class="muted" style="font-size:18px; margin-top:4px">Section Title</div>
+        </div>
+        <p style="margin-top:12px">
+          This is body text. It should be comfortable to read and meet contrast guidelines.
+          Links, buttons, and inputs below help you judge the theme in real UI pieces.
+        </p>
+        <div class="row" style="margin-top:8px">
+          <button class="btn btn-primary">Primary</button>
+          <button class="btn btn-outline">Outline</button>
+          <button class="btn btn-secondary">Secondary</button>
+          <button class="btn btn-ghost">Ghost</button>
+        </div>
+        <div style="margin-top:12px" class="grid">
+          <label>Email</label>
+          <input class="input" placeholder="you@example.com">
+        </div>
+        <div class="alert" style="margin-top:12px">
+          <div style="font-weight:600" id="alertTitle">Alert Title</div>
+          <div class="muted">Something informative that uses your muted/accent tokens.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="grid" style="grid-template-columns:1fr 1fr; gap:12px">
+          <div><div class="muted" style="font-size:12px">Heading</div><div style="font-size:22px; font-weight:800">H1 / 32</div></div>
+          <div><div class="muted" style="font-size:12px">Subheading</div><div style="font-size:18px">H2 / 18</div></div>
+          <div><div class="muted" style="font-size:12px">Body</div><div>16 px default</div></div>
+          <div><div class="muted" style="font-size:12px">Small</div><div style="font-size:14px">14 px helper</div></div>
+        </div>
+        <div class="grid" style="margin-top:12px">
+          <label>Sample Link</label>
+          <a href="#" id="sampleLink">Learn more →</a>
+        </div>
+        <div class="grid" style="margin-top:12px">
+          <label>Ring Focus</label>
+          <input class="input" placeholder="Focus me" id="focusInput">
+        </div>
+        <div class="grid" style="margin-top:12px">
+          <label>Disabled</label>
+          <button class="btn btn-primary" disabled style="opacity:.6">Disabled</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-weight:600; font-size:18px">Design Tokens</div>
+        <div class="tokens" id="tokens"></div>
+        <div style="display:flex; gap:8px; align-items:center; margin-top:6px">
+          <div style="font-weight:600">CSS Variables</div>
+          <button class="copy-btn" id="copyCss">Copy</button>
+        </div>
+        <pre id="cssOut"></pre>
+        <div style="display:flex; gap:8px; align-items:center; margin-top:10px">
+          <div style="font-weight:600">Tailwind Config (example)</div>
+          <button class="copy-btn" id="copyTw">Copy</button>
+        </div>
+        <pre id="twOut"></pre>
+      </div>
+    </div>
+
+    <div class="card tests" style="margin-top:16px">
+      <div style="font-weight:600; font-size:18px; margin-bottom:8px">Self-Tests</div>
+      <div id="tests" class="grid"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="muted" style="font-size:14px">
+        Tip: Want me to add a site’s exact palette? Share the URL and I’ll craft a theme preset.
+      </div>
+    </div>
+  </div>
+
+<script>
+// --------- DATA ---------
+const PALETTES = {
+  "Hunter.io": {
+    bg: "#FFFFFF",
+    card: "#F7F9FA",
+    text: "#0F172A",
+    muted: "#6B7280",
+    primary: "#FF6D00",
+    primaryFg: "#FFFFFF",
+    secondary: "#2563EB",
+    accent: "#22C55E",
+    ring: "#FFB37A",
+  },
+  "Indigo": {
+    bg: "#ffffff", card: "#f8fafc", text: "#0f172a", muted: "#64748b",
+    primary: "#4f46e5", primaryFg: "#ffffff", secondary: "#22c55e", accent: "#f97316", ring: "#6366f1",
+  },
+  "Emerald": {
+    bg: "#ffffff", card: "#f6fef9", text: "#052e16", muted: "#0f766e",
+    primary: "#10b981", primaryFg: "#06281f", secondary: "#2563eb", accent: "#a855f7", ring: "#34d399",
+  },
+  "Rose": {
+    bg: "#ffffff", card: "#fff1f2", text: "#3f0a0a", muted: "#9f1239",
+    primary: "#e11d48", primaryFg: "#ffffff", secondary: "#0ea5e9", accent: "#22c55e", ring: "#fb7185",
+  },
+  "Slate": {
+    bg: "#f8fafc", card: "#ffffff", text: "#0f172a", muted: "#475569",
+    primary: "#334155", primaryFg: "#e2e8f0", secondary: "#7c3aed", accent: "#ef4444", ring: "#94a3b8",
+  },
+  "Ocean": {
+    bg: "#f7fbff", card: "#ffffff", text: "#0b1220", muted: "#4b5b79",
+    primary: "#0ea5e9", primaryFg: "#001019", secondary: "#14b8a6", accent: "#6366f1", ring: "#22d3ee",
+  },
+};
+
+const FONTS = {
+  "Open Sans": "Open Sans, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, sans-serif",
+  "System UI": "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, sans-serif",
+  "Inter": "Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, sans-serif",
+  "Roboto": "Roboto, system-ui, -apple-system, Segoe UI, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, sans-serif",
+  "Poppins": "Poppins, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, sans-serif",
+  "Merriweather": "Merriweather, Georgia, Cambria, 'Times New Roman', Times, serif",
+  "Mono": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+};
+
+function darkenHex(hex, amount = 0.15) {
+  try {
+    const c = hex.replace('#','');
+    const r = parseInt(c.substring(0,2),16);
+    const g = parseInt(c.substring(2,4),16);
+    const b = parseInt(c.substring(4,6),16);
+    const d = (x)=> Math.max(0, Math.min(255, Math.round(x*(1-amount))));
+    const toHex = (x)=> x.toString(16).padStart(2,'0');
+    return `#${toHex(d(r))}${toHex(d(g))}${toHex(d(b))}`;
+  } catch { return hex; }
+}
+
+function makeDarkTokens(base) {
+  return {
+    bg: darkenHex(base.text, 0.7),
+    card: darkenHex(base.card, 0.3),
+    text: base.card.toLowerCase() === "#ffffff" ? "#e5e7eb" : "#f1f5f9",
+    muted: darkenHex(base.muted, 0.2),
+    primary: base.primary,
+    primaryFg: base.primaryFg,
+    secondary: base.secondary,
+    accent: base.accent,
+    ring: base.ring,
+  };
+}
+
+const REQUIRED_KEYS = ["bg","card","text","muted","primary","primaryFg","secondary","accent","ring"];
+
+function setTokens(tokens, font, rounded) {
+  const root = document.documentElement.style;
+  root.setProperty("--bg", tokens.bg);
+  root.setProperty("--card", tokens.card);
+  root.setProperty("--text", tokens.text);
+  root.setProperty("--muted", tokens.muted);
+  root.setProperty("--primary", tokens.primary);
+  root.setProperty("--primary-foreground", tokens.primaryFg);
+  root.setProperty("--secondary", tokens.secondary);
+  root.setProperty("--accent", tokens.accent);
+  root.setProperty("--ring", tokens.ring);
+  root.setProperty("--font", font);
+  root.setProperty("--radius", rounded ? "16px" : "6px");
+
+  // Update sample pieces that need inline colors
+  document.getElementById("alertTitle").style.color = tokens.accent;
+  document.getElementById("sampleLink").style.color = tokens.accent;
+  document.getElementById("focusInput").style.boxShadow = `0 0 0 3px ${tokens.ring}66`;
+}
+
+function renderTokensList(tokens) {
+  const el = document.getElementById("tokens");
+  el.innerHTML = "";
+  const items = [
+    ["--bg", tokens.bg],
+    ["--card", tokens.card],
+    ["--text", tokens.text],
+    ["--muted", tokens.muted],
+    ["--primary", tokens.primary],
+    ["--primary-foreground", tokens.primaryFg],
+    ["--secondary", tokens.secondary],
+    ["--accent", tokens.accent],
+    ["--ring", tokens.ring],
+  ];
+  for (const [name, value] of items) {
+    const row = document.createElement("div");
+    row.className = "token";
+    row.innerHTML = `
+      <div style="display:flex; align-items:center; gap:10px">
+        <span class="chip" style="background:${value}"></span>
+        <div style="font-size:14px">
+          <div style="font-weight:600">${name}</div>
+          <div class="muted" style="font-size:12px">${value}</div>
+        </div>
+      </div>
+      <button class="copy-btn" data-copy="${name}: ${value};">Copy</button>
+    `;
+    el.appendChild(row);
+  }
+  el.querySelectorAll("button.copy-btn").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      try{ await navigator.clipboard.writeText(btn.getAttribute("data-copy")); btn.textContent="Copied"; setTimeout(()=>btn.textContent="Copy",1000);}catch{}
+    });
+  });
+}
+
+function renderCodeBlocks(tokens, font) {
+  const css = `:root {
+  --bg: ${tokens.bg};
+  --card: ${tokens.card};
+  --text: ${tokens.text};
+  --muted: ${tokens.muted};
+  --primary: ${tokens.primary};
+  --primary-foreground: ${tokens.primaryFg};
+  --secondary: ${tokens.secondary};
+  --accent: ${tokens.accent};
+  --ring: ${tokens.ring};
+  font-family: ${font};
+}`;
+
+  const tw = `// tailwind.config.js (extend example)
+module.exports = {
+  theme: {
+    extend: {
+      colors: {
+        bg: "${tokens.bg}",
+        card: "${tokens.card}",
+        text: "${tokens.text}",
+        muted: "${tokens.muted}",
+        primary: "${tokens.primary}",
+        secondary: "${tokens.secondary}",
+        accent: "${tokens.accent}",
+        ring: "${tokens.ring}",
+      },
+      fontFamily: {
+        ui: [${JSON.stringify(font)}],
+      }
+    }
+  }
+}`;
+
+  document.getElementById("cssOut").textContent = css;
+  document.getElementById("twOut").textContent = tw;
+}
+
+function runSelfTests() {
+  const results = [];
+  const hexOK = (h) => /^#([0-9A-Fa-f]{6})$/.test(h);
+
+  // 1) Palette keys & hex
+  for (const [name, t] of Object.entries(PALETTES)) {
+    const missing = REQUIRED_KEYS.filter(k => !(k in t));
+    const bad = Object.entries(t).filter(([k,v]) => REQUIRED_KEYS.includes(k) && !hexOK(String(v))).map(([k])=>k);
+    results.push({ name:`Palette keys & hex valid: ${name}`, pass: missing.length===0 && bad.length===0, detail:`Missing: ${missing.join(", ")||"none"}; Bad: ${bad.join(", ")||"none"}` });
+  }
+  // 2) Hunter.io primary
+  const hunter = PALETTES["Hunter.io"];
+  results.push({ name:"Hunter.io present", pass: !!hunter, detail: hunter ? "OK" : "Not found" });
+  results.push({ name:"Hunter.io primary is #FF6D00", pass: hunter && hunter.primary.toUpperCase()==="#FF6D00", detail: hunter ? `primary=${hunter.primary}`:"no palette" });
+  // 3) Dark generator
+  const base = PALETTES["Indigo"];
+  const dark = makeDarkTokens(base);
+  results.push({ name:"Dark tokens shape", pass: REQUIRED_KEYS.every(k => k in dark), detail: "OK" });
+  results.push({ name:"Dark bg differs from base bg", pass: base.bg !== dark.bg, detail: `base=${base.bg} dark=${dark.bg}` });
+
+  const list = document.getElementById("tests");
+  list.innerHTML = "";
+  for (const t of results) {
+    const row = document.createElement("div");
+    row.className = "test";
+    row.innerHTML = `<div class="muted" style="font-size:14px">${t.name}</div><div class="${t.pass?'pass':'fail'}" style="font-weight:600">${t.pass?'PASS':'FAIL'}</div>`;
+    list.appendChild(row);
+  }
+}
+
+function initControls() {
+  const palSel = document.getElementById("palette");
+  const fontSel = document.getElementById("fontSel");
+  const rounded = document.getElementById("rounded");
+  const dark = document.getElementById("dark");
+
+  palSel.innerHTML = Object.keys(PALETTES).map(k => `<option value="${k}">${k}</option>`).join("");
+  fontSel.innerHTML = Object.keys(FONTS).map(k => `<option value="${k}">${k}</option>`).join("");
+
+  palSel.value = "Indigo";
+  fontSel.value = "Inter";
+
+  function apply() {
+    const p = palSel.value;
+    const f = fontSel.value;
+    const base = PALETTES[p];
+    const tokens = dark.checked ? makeDarkTokens(base) : base;
+    setTokens(tokens, FONTS[f], rounded.checked);
+    renderTokensList(tokens);
+    renderCodeBlocks(tokens, FONTS[f]);
+  }
+
+  palSel.addEventListener("change", apply);
+  fontSel.addEventListener("change", apply);
+  rounded.addEventListener("change", apply);
+  dark.addEventListener("change", apply);
+
+  document.getElementById("copyCss").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(document.getElementById("cssOut").textContent); } catch {}
+  });
+  document.getElementById("copyTw").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(document.getElementById("twOut").textContent); } catch {}
+  });
+
+  apply();
+  runSelfTests();
+}
+
+document.addEventListener("DOMContentLoaded", initControls);
+</script>
+</body>
+</html>
