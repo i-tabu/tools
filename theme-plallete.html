@@ -1,0 +1,340 @@
+import React, { useMemo, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Copy } from "lucide-react";
+
+// Simple theme tokens using CSS variables so you can copy them into any stack
+const PALETTES = {
+  Indigo: {
+    bg: "#ffffff",
+    card: "#f8fafc",
+    text: "#0f172a",
+    muted: "#64748b",
+    primary: "#4f46e5",
+    primaryFg: "#ffffff",
+    secondary: "#22c55e",
+    accent: "#f97316",
+    ring: "#6366f1",
+  },
+  Emerald: {
+    bg: "#ffffff",
+    card: "#f6fef9",
+    text: "#052e16",
+    muted: "#0f766e",
+    primary: "#10b981",
+    primaryFg: "#06281f",
+    secondary: "#2563eb",
+    accent: "#a855f7",
+    ring: "#34d399",
+  },
+  Rose: {
+    bg: "#ffffff",
+    card: "#fff1f2",
+    text: "#3f0a0a",
+    muted: "#9f1239",
+    primary: "#e11d48",
+    primaryFg: "#ffffff",
+    secondary: "#0ea5e9",
+    accent: "#22c55e",
+    ring: "#fb7185",
+  },
+  Slate: {
+    bg: "#f8fafc",
+    card: "#ffffff",
+    text: "#0f172a",
+    muted: "#475569",
+    primary: "#334155",
+    primaryFg: "#e2e8f0",
+    secondary: "#7c3aed",
+    accent: "#ef4444",
+    ring: "#94a3b8",
+  },
+  Ocean: {
+    bg: "#f7fbff",
+    card: "#ffffff",
+    text: "#0b1220",
+    muted: "#4b5b79",
+    primary: "#0ea5e9",
+    primaryFg: "#001019",
+    secondary: "#14b8a6",
+    accent: "#6366f1",
+    ring: "#22d3ee",
+  },
+};
+
+const FONTS = {
+  "System UI": "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, sans-serif",
+  Inter: "Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, sans-serif",
+  Roboto: "Roboto, system-ui, -apple-system, Segoe UI, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, sans-serif",
+  Poppins: "Poppins, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, sans-serif",
+  Merriweather: "Merriweather, Georgia, Cambria, 'Times New Roman', Times, serif",
+  Mono: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+};
+
+const SAMPLE_COPY = {
+  h1: "Product Heading",
+  h2: "Section Title",
+  paragraph:
+    "This is body text. It should be comfortable to read and meet contrast guidelines. Links, buttons, and inputs below help you judge the theme in real UI pieces.",
+};
+
+function TokensTable({ tokens }) {
+  const items = [
+    ["--bg", tokens.bg],
+    ["--card", tokens.card],
+    ["--text", tokens.text],
+    ["--muted", tokens.muted],
+    ["--primary", tokens.primary],
+    ["--primary-foreground", tokens.primaryFg],
+    ["--secondary", tokens.secondary],
+    ["--accent", tokens.accent],
+    ["--ring", tokens.ring],
+  ];
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {items.map(([name, value]) => (
+        <div key={name} className="flex items-center justify-between rounded-2xl border p-3 shadow-sm">
+          <div className="flex items-center gap-3">
+            <span
+              className="h-7 w-7 rounded-xl border"
+              style={{ backgroundColor: value }}
+            />
+            <div className="text-sm">
+              <div className="font-medium">{name}</div>
+              <div className="text-xs opacity-70">{value}</div>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigator.clipboard?.writeText(`${name}: ${value};`) }
+            title="Copy token"
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function ThemePlayground() {
+  const [palette, setPalette] = useState("Indigo");
+  const [font, setFont] = useState("Inter");
+  const [rounded, setRounded] = useState(true);
+  const [dark, setDark] = useState(false);
+
+  const tokens = useMemo(() => {
+    const base = PALETTES[palette as keyof typeof PALETTES];
+    if (!dark) return base;
+    // auto-generate a dark variant by swapping bg/text and lowering lightness
+    const darken = (hex, amount = 0.15) => {
+      try {
+        const c = hex.replace('#','');
+        const r = parseInt(c.substring(0,2),16);
+        const g = parseInt(c.substring(2,4),16);
+        const b = parseInt(c.substring(4,6),16);
+        const d = (x)=> Math.max(0, Math.min(255, Math.round(x*(1-amount))));
+        const toHex = (x)=> x.toString(16).padStart(2,'0');
+        return `#${toHex(d(r))}${toHex(d(g))}${toHex(d(b))}`;
+      } catch { return hex; }
+    };
+    return {
+      bg: darken(base.text, 0.7),
+      card: darken(base.card, 0.3),
+      text: base.card === "#ffffff" ? "#e5e7eb" : "#f1f5f9",
+      muted: darken(base.muted, 0.2),
+      primary: base.primary,
+      primaryFg: base.primaryFg,
+      secondary: base.secondary,
+      accent: base.accent,
+      ring: base.ring,
+    };
+  }, [palette, dark]);
+
+  const radius = rounded ? "rounded-2xl" : "rounded-md";
+
+  return (
+    <div
+      className="min-h-screen p-6 md:p-10"
+      style={{
+        // CSS variables to make the theme easy to copy
+        // You can copy these into :root or a Tailwind theme extension
+        backgroundColor: tokens.bg,
+        color: tokens.text,
+        fontFamily: FONTS[font as keyof typeof FONTS],
+      }}
+    >
+      <div className="max-w-6xl mx-auto grid gap-6">
+        <div className={`sticky top-0 z-10 backdrop-blur ${radius} border px-4 py-3 shadow-sm`} style={{ backgroundColor: tokens.card }}>
+          <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-6">
+            <div className="text-xl font-semibold">Theme Palette Playground</div>
+            <div className="flex flex-wrap items-center gap-3 md:ml-auto">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm opacity-80">Palette</Label>
+                <Select value={palette} onValueChange={setPalette}>
+                  <SelectTrigger className="w-36">
+                    <SelectValue placeholder="Palette" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.keys(PALETTES).map((k) => (
+                      <SelectItem key={k} value={k}>{k}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm opacity-80">Font</Label>
+                <Select value={font} onValueChange={setFont}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Font" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.keys(FONTS).map((k) => (
+                      <SelectItem key={k} value={k}>{k}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm opacity-80">Rounded</Label>
+                <Switch checked={rounded} onCheckedChange={setRounded} />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm opacity-80">Dark</Label>
+                <Switch checked={dark} onCheckedChange={setDark} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6">
+          <Card className={`${radius} border`} style={{ backgroundColor: tokens.card }}>
+            <CardContent className="p-6 grid gap-4">
+              <div>
+                <div className="text-3xl font-bold tracking-tight" style={{ color: tokens.text }}>{SAMPLE_COPY.h1}</div>
+                <div className="text-lg mt-1" style={{ color: tokens.muted }}>{SAMPLE_COPY.h2}</div>
+              </div>
+              <p className="leading-7" style={{ color: tokens.text }}>
+                {SAMPLE_COPY.paragraph}
+              </p>
+              <div className="flex gap-3 flex-wrap">
+                <Button className={radius} style={{ backgroundColor: tokens.primary, color: tokens.primaryFg, boxShadow: `0 0 0 3px ${tokens.ring}20` }}>Primary</Button>
+                <Button className={radius} variant="outline" style={{ borderColor: tokens.primary, color: tokens.primary }}>Outline</Button>
+                <Button className={radius} variant="secondary" style={{ backgroundColor: tokens.secondary, color: tokens.primaryFg }}>Secondary</Button>
+                <Button className={radius} variant="ghost" style={{ color: tokens.accent }}>Ghost</Button>
+              </div>
+              <div className="grid gap-2">
+                <Label>Email</Label>
+                <Input className={radius} placeholder="you@example.com" style={{ backgroundColor: dark ? "#0b1220" : "#fff", color: tokens.text, borderColor: tokens.ring }} />
+              </div>
+              <div className={`p-4 ${radius}`} style={{ backgroundColor: dark ? "#111827" : "#f1f5f9", color: tokens.text }}>
+                <div className="font-medium" style={{ color: tokens.accent }}>Alert Title</div>
+                <div className="text-sm" style={{ color: tokens.muted }}>Something informative that uses your muted/accent tokens.</div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={`${radius} border`} style={{ backgroundColor: tokens.card }}>
+            <CardContent className="p-6 grid gap-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="text-sm opacity-70">Heading</div>
+                  <div className="text-2xl font-bold">H1 / 32</div>
+                </div>
+                <div>
+                  <div className="text-sm opacity-70">Subheading</div>
+                  <div className="text-lg">H2 / 18</div>
+                </div>
+                <div>
+                  <div className="text-sm opacity-70">Body</div>
+                  <div className="text-base">16 px default</div>
+                </div>
+                <div>
+                  <div className="text-sm opacity-70">Small</div>
+                  <div className="text-sm">14 px helper</div>
+                </div>
+              </div>
+              <div className="grid gap-3">
+                <Label>Sample Link</Label>
+                <a href="#" className="underline" style={{ color: tokens.accent }}>Learn more →</a>
+              </div>
+              <div className="grid gap-2">
+                <Label>Ring Focus</Label>
+                <Input className={radius} placeholder="Focus me" style={{ backgroundColor: dark ? "#0b1220" : "#fff", color: tokens.text, borderColor: tokens.ring, boxShadow: `0 0 0 3px ${tokens.ring}40` }} />
+              </div>
+              <div className="grid gap-2">
+                <Label>Disabled</Label>
+                <Button className={radius} disabled style={{ backgroundColor: tokens.primary, color: tokens.primaryFg, opacity: 0.6 }}>Disabled</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={`${radius} border`} style={{ backgroundColor: tokens.card }}>
+            <CardContent className="p-6 grid gap-4">
+              <div className="text-lg font-medium">Design Tokens</div>
+              <TokensTable tokens={tokens} />
+              <Tabs defaultValue="css" className="mt-2">
+                <TabsList>
+                  <TabsTrigger value="css">CSS</TabsTrigger>
+                  <TabsTrigger value="tailwind">Tailwind Config</TabsTrigger>
+                </TabsList>
+                <TabsContent value="css">
+                  <pre className={`text-xs p-3 ${radius} overflow-auto`} style={{ backgroundColor: dark ? "#0b1220" : "#0a0a0a0d" }}>
+{`:root {
+  --bg: ${tokens.bg};
+  --card: ${tokens.card};
+  --text: ${tokens.text};
+  --muted: ${tokens.muted};
+  --primary: ${tokens.primary};
+  --primary-foreground: ${tokens.primaryFg};
+  --secondary: ${tokens.secondary};
+  --accent: ${tokens.accent};
+  --ring: ${tokens.ring};
+  font-family: ${FONTS[font as keyof typeof FONTS]};
+}`}
+                  </pre>
+                </TabsContent>
+                <TabsContent value="tailwind">
+                  <pre className={`text-xs p-3 ${radius} overflow-auto`} style={{ backgroundColor: dark ? "#0b1220" : "#0a0a0a0d" }}>
+{`// tailwind.config.js (extend example)
+module.exports = {
+  theme: {
+    extend: {
+      colors: {
+        bg: "${tokens.bg}",
+        card: "${tokens.card}",
+        text: "${tokens.text}",
+        muted: "${tokens.muted}",
+        primary: "${tokens.primary}",
+        secondary: "${tokens.secondary}",
+        accent: "${tokens.accent}",
+        ring: "${tokens.ring}",
+      },
+      fontFamily: {
+        ui: [${JSON.stringify(FONTS[font as keyof typeof FONTS])}],
+      }
+    }
+  }
+}`}
+                  </pre>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className={`border ${radius} p-4`} style={{ backgroundColor: tokens.card }}>
+          <div className="text-sm opacity-80">
+            Tip: If you have a target website and want me to extract its colors & fonts to make a new theme option here, just paste the URL in chat.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
