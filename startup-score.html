@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Startup Scoring Tool</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background: #f8f9fa; }
+    .card { border-radius: 1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    textarea { resize: vertical; }
+  </style>
+</head>
+<body>
+  <div class="container py-4">
+    <div class="card p-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0">Startup Scoring Tool</h3>
+        <div class="d-flex gap-2">
+          <button id="authButton" class="btn btn-outline-secondary btn-sm" disabled>Connect Google Drive</button>
+          <button id="exportButton" class="btn btn-success btn-sm">Export to Google Sheets</button>
+        </div>
+      </div>
+      <form id="startupForm">
+        <div class="mb-3">
+          <label for="startupName" class="form-label">Startup Name</label>
+          <input type="text" id="startupName" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label for="notes" class="form-label">Notes</label>
+          <textarea id="notes" class="form-control" rows="2"></textarea>
+        </div>
+        <table class="table table-bordered mb-3">
+          <thead>
+            <tr>
+              <th>Criteria</th>
+              <th style="width:100px">Score (1-5)</th>
+            </tr>
+          </thead>
+          <tbody id="criteriaBody"></tbody>
+        </table>
+        <button type="submit" class="btn btn-primary">Add Startup</button>
+      </form>
+    </div>
+    <div class="card mt-4">
+      <div class="card-body">
+        <h4 class="card-title">Scores</h4>
+        <div class="table-responsive">
+          <table class="table table-striped" id="resultsTable">
+            <thead>
+              <tr>
+                <th>Startup</th>
+                <th title="Problem Identification &amp; Relevance">P</th>
+                <th title="Originality &amp; Innovation">O</th>
+                <th title="Feasibility &amp; Practicality">F</th>
+                <th title="Market Potential">M</th>
+                <th title="Team &amp; Execution">T</th>
+                <th title="Presentation &amp; Communication">Pr</th>
+                <th title="Business Model">B</th>
+                <th title="Implementation &amp; Scalability">I</th>
+                <th>Total</th>
+                <th>Notes</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const criteria = [
+      { name: 'Problem Identification & Relevance', desc: 'How clearly is the problem identified? How important is it in a real-world context?' },
+      { name: 'Originality & Innovation', desc: 'How new is the concept compared to existing solutions?' },
+      { name: 'Feasibility & Practicality', desc: 'Can it realistically be executed given current conditions/resources?' },
+      { name: 'Market Potential', desc: 'Is there a defined and accessible market for the idea?' },
+      { name: 'Team & Execution', desc: 'Does the team have necessary skills and expertise?' },
+      { name: 'Presentation & Communication', desc: 'Is the idea presented in a clear and compelling manner?' },
+      { name: 'Business Model', desc: 'Is there a clear path to sustainability and revenue?' },
+      { name: 'Implementation & Scalability', desc: 'Can the idea be expanded and replicated across contexts?' }
+    ];
+
+    const form = document.getElementById('startupForm');
+    const criteriaBody = document.getElementById('criteriaBody');
+    const resultsBody = document.querySelector('#resultsTable tbody');
+    const authButton = document.getElementById('authButton');
+    const exportButton = document.getElementById('exportButton');
+    const STORAGE_KEY = 'startupScores';
+    let editIndex = null;
+
+    function renderCriteria() {
+      criteriaBody.innerHTML = criteria.map((c, i) => `
+        <tr>
+          <td><strong>${c.name}</strong><br><small class="text-muted">${c.desc}</small></td>
+          <td>
+            <select class="form-select score-input" data-index="${i}">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3" selected>3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </td>
+        </tr>`).join('');
+    }
+
+    function getData() {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    }
+
+    function saveData(data) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function renderResults() {
+      const data = getData();
+      resultsBody.innerHTML = data.map((item, idx) => `
+        <tr>
+          <td>${item.name}</td>
+          ${item.scores.map(s => `<td>${s}</td>`).join('')}
+          <td>${item.total}</td>
+          <td>${item.notes}</td>
+          <td>
+            <button class="btn btn-sm btn-secondary me-1" data-action="edit" data-index="${idx}">Edit</button>
+            <button class="btn btn-sm btn-danger" data-action="delete" data-index="${idx}">Delete</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const name = document.getElementById('startupName').value.trim();
+      const notes = document.getElementById('notes').value.trim();
+      const scores = Array.from(document.querySelectorAll('.score-input')).map(sel => parseInt(sel.value));
+      const total = scores.reduce((a,b) => a + b, 0);
+      const data = getData();
+      if (editIndex === null) {
+        data.push({ name, notes, scores, total });
+      } else {
+        data[editIndex] = { name, notes, scores, total };
+        editIndex = null;
+        form.querySelector('button[type="submit"]').textContent = 'Add Startup';
+      }
+      saveData(data);
+      form.reset();
+      renderCriteria();
+      renderResults();
+    });
+
+    resultsBody.addEventListener('click', e => {
+      const action = e.target.dataset.action;
+      const idx = parseInt(e.target.dataset.index);
+      if (action === 'delete') {
+        const data = getData();
+        data.splice(idx, 1);
+        saveData(data);
+        renderResults();
+      } else if (action === 'edit') {
+        const data = getData();
+        const item = data[idx];
+        document.getElementById('startupName').value = item.name;
+        document.getElementById('notes').value = item.notes;
+        item.scores.forEach((score, i) => {
+          document.querySelector(`.score-input[data-index="${i}"]`).value = score;
+        });
+        editIndex = idx;
+        form.querySelector('button[type="submit"]').textContent = 'Update Startup';
+      }
+    });
+
+    // Google Drive / Sheets integration
+    const CLIENT_ID = '1001017008332-peajlj58k24flbk6q9b8s618mf934uv3.apps.googleusercontent.com';
+    const SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
+    let tokenClient;
+    let accessToken = null;
+    let gapiInited = false;
+    let gisInited = false;
+
+    authButton.onclick = handleAuthClick;
+    authButton.disabled = true;
+    exportButton.addEventListener('click', exportToSheet);
+
+    function gapiLoaded() {
+      gapi.load('client', initializeGapiClient);
+    }
+
+    async function initializeGapiClient() {
+      await gapi.client.init({});
+      gapiInited = true;
+      maybeEnableAuth();
+    }
+
+    function gisLoaded() {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: ''
+      });
+      gisInited = true;
+      maybeEnableAuth();
+    }
+
+    function maybeEnableAuth() {
+      if (gapiInited && gisInited) {
+        authButton.disabled = false;
+      }
+    }
+
+    function handleAuthClick() {
+      if (accessToken === null) {
+        tokenClient.callback = (resp) => {
+          if (resp.error !== undefined) {
+            console.error(resp);
+            return;
+          }
+          accessToken = resp.access_token;
+          authButton.textContent = 'Disconnect Google Drive';
+        };
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+      } else {
+        google.accounts.oauth2.revoke(accessToken, () => {
+          accessToken = null;
+          authButton.textContent = 'Connect Google Drive';
+        });
+      }
+    }
+
+    async function ensureItabuFolder() {
+      const q = "name='itabu-tools' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+      const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`, {
+        headers: new Headers({ 'Authorization': 'Bearer ' + accessToken })
+      });
+      const data = await resp.json();
+      if (data.files && data.files.length > 0) {
+        return data.files[0].id;
+      }
+      const createResp = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: new Headers({
+          'Authorization': 'Bearer ' + accessToken,
+          'Content-Type': 'application/json'
+        }),
+        body: JSON.stringify({
+          name: 'itabu-tools',
+          mimeType: 'application/vnd.google-apps.folder'
+        })
+      });
+      const createData = await createResp.json();
+      return createData.id;
+    }
+
+    async function ensureSpreadsheet(folderId) {
+      const q = `name='startup-scores' and mimeType='application/vnd.google-apps.spreadsheet' and '${folderId}' in parents and trashed=false`;
+      const resp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`, {
+        headers: new Headers({ 'Authorization': 'Bearer ' + accessToken })
+      });
+      const data = await resp.json();
+      if (data.files && data.files.length > 0) {
+        return data.files[0].id;
+      }
+      const createResp = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: new Headers({
+          'Authorization': 'Bearer ' + accessToken,
+          'Content-Type': 'application/json'
+        }),
+        body: JSON.stringify({
+          name: 'startup-scores',
+          mimeType: 'application/vnd.google-apps.spreadsheet',
+          parents: [folderId]
+        })
+      });
+      const createData = await createResp.json();
+      return createData.id;
+    }
+
+    async function exportToSheet() {
+      const data = getData();
+      if (!data.length) {
+        alert('No data to export');
+        return;
+      }
+      if (!accessToken) {
+        alert('Connect Google Drive first');
+        return;
+      }
+      const folderId = await ensureItabuFolder();
+      const sheetId = await ensureSpreadsheet(folderId);
+      const rows = data.map(item => [item.name, ...item.scores, item.total, item.notes]);
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:append?valueInputOption=USER_ENTERED`, {
+        method: 'POST',
+        headers: new Headers({
+          'Authorization': 'Bearer ' + accessToken,
+          'Content-Type': 'application/json'
+        }),
+        body: JSON.stringify({ values: rows })
+      });
+      alert('Exported to Google Sheets');
+    }
+
+    renderCriteria();
+    renderResults();
+  </script>
+
+  <footer style="text-align: center; font-size: 0.9em; margin-top: 2em; padding: 1em 0; color: #555;">
+    <p>
+      <a href="https://tools.itabu.xyz/" style="margin-right: 1em;">Home</a>
+      <a href="terms.html" target="_blank" style="margin-right: 1em;">Terms of Service</a>
+      <a href="privacy.html" target="_blank">Privacy Policy</a>
+    </p>
+    <p style="margin-top: 0.5em;">© 2025 i-Tabu Tool</p>
+  </footer>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()" async defer></script>
+  <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()" async defer></script>
+</body>
+</html>
