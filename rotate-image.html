@@ -45,12 +45,17 @@
     <!-- Controls -->
     <div class="d-flex justify-content-center align-items-center gap-3 flex-wrap mb-3">
       <button class="btn btn-outline-primary" id="rotateLeft">⟲ Rotate Left</button>
+      <button class="btn btn-outline-secondary" id="flipHorizontal">⇆ Flip H</button>
+      <button class="btn btn-outline-secondary" id="flipVertical">⇅ Flip V</button>
       <input type="range" id="rotateSlider" min="-180" max="180" value="0" step="1" class="form-range w-50">
       <button class="btn btn-outline-primary" id="rotateRight">⟳ Rotate Right</button>
     </div>
 
-    <!-- Save -->
-    <button class="btn btn-success" id="downloadBtn">💾 Save & Download</button>
+    <!-- Actions -->
+    <div class="d-flex justify-content-center gap-3">
+      <button class="btn btn-warning" id="cropBtn">✂️ Crop</button>
+      <button class="btn btn-success" id="downloadBtn">💾 Save & Download</button>
+    </div>
   </div>
 
   <script>
@@ -60,10 +65,19 @@
     const rotateLeft = document.getElementById("rotateLeft");
     const rotateRight = document.getElementById("rotateRight");
     const rotateSlider = document.getElementById("rotateSlider");
+    const flipHorizontal = document.getElementById("flipHorizontal");
+    const flipVertical = document.getElementById("flipVertical");
+    const cropBtn = document.getElementById("cropBtn");
     const downloadBtn = document.getElementById("downloadBtn");
 
     let img = new Image();
     let angle = 0;
+    let flipH = false;
+    let flipV = false;
+    let isCropping = false;
+    let startX = 0;
+    let startY = 0;
+    let isDrawing = false;
 
     // Upload image
     uploadImage.addEventListener("change", (e) => {
@@ -100,6 +114,7 @@
       ctx.save();
       ctx.translate(canvas.width / 2, canvas.height / 2);
       ctx.rotate(radians);
+      ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
       ctx.drawImage(img, -w / 2, -h / 2);
       ctx.restore();
     }
@@ -122,6 +137,79 @@
     rotateSlider.addEventListener("input", (e) => {
       angle = parseInt(e.target.value);
       drawImage();
+    });
+
+    // Flip horizontally
+    flipHorizontal.addEventListener("click", () => {
+      flipH = !flipH;
+      drawImage();
+    });
+
+    // Flip vertically
+    flipVertical.addEventListener("click", () => {
+      flipV = !flipV;
+      drawImage();
+    });
+
+    // Crop functionality
+    cropBtn.addEventListener("click", () => {
+      if (!img.src) return;
+      isCropping = !isCropping;
+      cropBtn.textContent = isCropping ? "Cancel Crop" : "✂️ Crop";
+      if (!isCropping) drawImage();
+    });
+
+    canvas.addEventListener("mousedown", (e) => {
+      if (!isCropping) return;
+      const rect = canvas.getBoundingClientRect();
+      startX = e.clientX - rect.left;
+      startY = e.clientY - rect.top;
+      isDrawing = true;
+    });
+
+    canvas.addEventListener("mousemove", (e) => {
+      if (!isCropping || !isDrawing) return;
+      const rect = canvas.getBoundingClientRect();
+      const currentX = e.clientX - rect.left;
+      const currentY = e.clientY - rect.top;
+      drawImage();
+      ctx.strokeStyle = "red";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6]);
+      ctx.strokeRect(startX, startY, currentX - startX, currentY - startY);
+      ctx.setLineDash([]);
+    });
+
+    canvas.addEventListener("mouseup", (e) => {
+      if (!isCropping || !isDrawing) return;
+      const rect = canvas.getBoundingClientRect();
+      const endX = e.clientX - rect.left;
+      const endY = e.clientY - rect.top;
+      const x = Math.min(startX, endX);
+      const y = Math.min(startY, endY);
+      const w = Math.abs(endX - startX);
+      const h = Math.abs(endY - startY);
+      drawImage();
+      if (w && h) {
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = w;
+        tempCanvas.height = h;
+        tempCanvas.getContext("2d").drawImage(canvas, x, y, w, h, 0, 0, w, h);
+        img = new Image();
+        img.onload = () => {
+          angle = 0;
+          rotateSlider.value = 0;
+          flipH = false;
+          flipV = false;
+          canvas.width = w;
+          canvas.height = h;
+          drawImage();
+        };
+        img.src = tempCanvas.toDataURL();
+      }
+      isCropping = false;
+      isDrawing = false;
+      cropBtn.textContent = "✂️ Crop";
     });
 
     // Download rotated image
