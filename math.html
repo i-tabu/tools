@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Base-10 Block Quiz</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    canvas {border:1px solid #ddd; margin-bottom:0.5rem;}
+  </style>
+</head>
+<body class="p-4">
+  <div class="container">
+    <h1 class="mb-4">Base-10 Block Quiz</h1>
+    <button class="btn btn-primary mb-3" onclick="generateQuestion()">New Question</button>
+    <div id="question-area"></div>
+  </div>
+
+<script>
+const questionArea = document.getElementById('question-area');
+
+function drawBlocks(canvas, hundreds, tens, ones) {
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // draw hundreds as big squares
+  for (let i=0; i<hundreds; i++) {
+    ctx.fillStyle="#add8e6";
+    ctx.fillRect(10 + i*35, 10, 30, 30);
+  }
+
+  // draw tens as rods
+  for (let i=0; i<tens; i++) {
+    ctx.fillStyle="#90ee90";
+    ctx.fillRect(10 + i*12, 50, 10, 30);
+  }
+
+  // draw ones as cubes
+  for (let i=0; i<ones; i++) {
+    ctx.fillStyle="#f08080";
+    ctx.fillRect(10 + i*12, 90, 10, 10);
+  }
+}
+
+function generateOptions(correct) {
+  // create some “wrong” options around correct answer
+  const opts = [];
+  opts.push(correct);
+  while (opts.length < 4) {
+    let h = Math.max(0, correct.h + Math.floor(Math.random()*3-1));
+    let t = Math.max(0, correct.t + Math.floor(Math.random()*3-1));
+    let o = Math.max(0, correct.o + Math.floor(Math.random()*3-1));
+    const already = opts.some(x=>x.h===h&&x.t===t&&x.o===o);
+    if (!already) opts.push({h,t,o});
+  }
+  // shuffle
+  return opts.sort(()=>Math.random()-0.5);
+}
+
+function generateQuestion() {
+  questionArea.innerHTML = '';
+  // pick a random number between 100 and 499
+  const number = Math.floor(Math.random()*400)+100;
+  const h = Math.floor(number/100);
+  const t = Math.floor((number%100)/10);
+  const o = number%10;
+  const correct = {h,t,o};
+  const options = generateOptions(correct);
+
+  const q = document.createElement('h4');
+  q.textContent = `Choose the correct representation for ${number}:`;
+  questionArea.appendChild(q);
+
+  const row = document.createElement('div');
+  row.className='row';
+  options.forEach((opt,idx)=>{
+    const col = document.createElement('div');
+    col.className='col-6 col-md-3 mb-3 text-center';
+
+    const canvas = document.createElement('canvas');
+    canvas.width=160; canvas.height=120;
+    drawBlocks(canvas,opt.h,opt.t,opt.o);
+    col.appendChild(canvas);
+
+    const label = document.createElement('div');
+    label.textContent = String.fromCharCode(65+idx); // A,B,C,D
+    col.appendChild(label);
+
+    col.onclick=()=>{
+      if (opt.h===h && opt.t===t && opt.o===o) {
+        alert('Correct!');
+      } else {
+        alert('Try again.');
+      }
+    };
+    row.appendChild(col);
+  });
+  questionArea.appendChild(row);
+}
+
+generateQuestion(); // initial
+</script>
+</body>
+</html>
