@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Play a short beep to check your device speakers.">
+  <title>Beep — Speaker Check</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      display: grid;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      place-items: center;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 42%, rgba(99, 102, 241, 0.13), transparent 32rem),
+        #f7f8fc;
+    }
+
+    .beep-button {
+      position: relative;
+      display: grid;
+      width: clamp(11rem, 34vw, 15rem);
+      aspect-ratio: 1;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      border-radius: 50%;
+      color: #fff;
+      background: linear-gradient(145deg, #7477f5, #4f46e5);
+      box-shadow:
+        0 1.5rem 3.5rem rgba(79, 70, 229, 0.3),
+        inset 0 2px 1px rgba(255, 255, 255, 0.35),
+        inset 0 -4px 8px rgba(30, 27, 120, 0.24);
+      font: 750 clamp(1.5rem, 5vw, 2.25rem) / 1 inherit;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+    }
+
+    .beep-button::before {
+      position: absolute;
+      z-index: -1;
+      width: 116%;
+      aspect-ratio: 1;
+      border: 1px solid rgba(99, 102, 241, 0.15);
+      border-radius: inherit;
+      content: "";
+    }
+
+    .beep-button:hover {
+      filter: brightness(1.05);
+      transform: translateY(-3px);
+      box-shadow:
+        0 1.8rem 4rem rgba(79, 70, 229, 0.36),
+        inset 0 2px 1px rgba(255, 255, 255, 0.4),
+        inset 0 -4px 8px rgba(30, 27, 120, 0.22);
+    }
+
+    .beep-button:active,
+    .beep-button.is-playing {
+      filter: brightness(0.98);
+      transform: translateY(2px) scale(0.97);
+      box-shadow:
+        0 0.8rem 2rem rgba(79, 70, 229, 0.28),
+        inset 0 3px 10px rgba(30, 27, 120, 0.25);
+    }
+
+    .beep-button:focus-visible {
+      outline: 4px solid rgba(79, 70, 229, 0.28);
+      outline-offset: 8px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .beep-button {
+        transition: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button class="beep-button" type="button" aria-label="Play a test beep">Beep</button>
+
+  <script>
+    const beepButton = document.querySelector('.beep-button');
+    let audioContext;
+
+    beepButton.addEventListener('click', async () => {
+      audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+      await audioContext.resume();
+
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      const now = audioContext.currentTime;
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(740, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.22, now + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.start(now);
+      oscillator.stop(now + 0.23);
+
+      beepButton.classList.add('is-playing');
+      window.setTimeout(() => beepButton.classList.remove('is-playing'), 180);
+    });
+  </script>
+</body>
+</html>
