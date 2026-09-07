@@ -222,6 +222,8 @@
         <button class="icon-btn secondary-action" id="undoBtn" title="Undo (Ctrl+Z)" aria-label="Undo"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v1"/></svg></button>
         <button class="icon-btn secondary-action" id="redoBtn" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0-6 6v1"/></svg></button>
         <button class="action-btn" id="resetBtn"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg><span class="desktop-label">New map</span></button>
+        <button class="action-btn" id="importBtn"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M5 20h14"/></svg><span class="desktop-label">Import</span><span class="mobile-label">Open</span></button>
+        <input id="importFile" type="file" accept="application/json,.json" hidden>
         <button class="action-btn primary" id="exportBtn"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg><span class="desktop-label">Export</span><span class="mobile-label">Save</span></button>
       </div>
     </header>
@@ -430,6 +432,46 @@
         a.href = url; a.download = `${$('mapTitle').value.trim().replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'mind-map'}.json`; a.click(); URL.revokeObjectURL(url); showToast('Mind map exported');
       }
 
+      async function importMap(file) {
+        if (!file) return;
+        try {
+          const data = JSON.parse(await file.text());
+          if (!data || !Array.isArray(data.nodes) || !data.nodes.length) throw new Error('No thoughts found');
+          const ids = new Set();
+          const imported = data.nodes.map(raw => {
+            const id = Number(raw.id), parent = raw.parent === null ? null : Number(raw.parent);
+            if (!Number.isInteger(id) || ids.has(id) || typeof raw.text !== 'string' || !Number.isFinite(Number(raw.x)) || !Number.isFinite(Number(raw.y))) {
+              throw new Error('Invalid thought data');
+            }
+            ids.add(id);
+            return { id, parent, text: raw.text.trim() || 'Untitled', x: Number(raw.x), y: Number(raw.y), color: palette.includes(raw.color) ? raw.color : palette[0] };
+          });
+          const roots = imported.filter(node => node.parent === null);
+          if (roots.length !== 1 || imported.some(node => node.parent !== null && !ids.has(node.parent))) {
+            throw new Error('Invalid branch structure');
+          }
+          const reachable = new Set([roots[0].id]);
+          let foundBranch = true;
+          while (foundBranch) {
+            foundBranch = false;
+            imported.forEach(node => {
+              if (node.parent !== null && reachable.has(node.parent) && !reachable.has(node.id)) {
+                reachable.add(node.id); foundBranch = true;
+              }
+            });
+          }
+          if (reachable.size !== imported.length) throw new Error('Branches must connect to the central thought');
+          checkpoint();
+          nodes = imported; nextId = Math.max(...nodes.map(node => node.id)) + 1; selected = roots[0].id;
+          $('mapTitle').value = typeof data.title === 'string' && data.title.trim() ? data.title.trim().slice(0, 120) : file.name.replace(/\.json$/i, '') || 'Imported Mind Map';
+          render(); fitMap(); save(); showToast('Mind map imported');
+        } catch (error) {
+          showToast(`Couldn’t import: ${error.message}`);
+        } finally {
+          $('importFile').value = '';
+        }
+      }
+
       document.addEventListener('pointermove', e => {
         if (dragging) { const node = nodes.find(n => n.id === dragging.id); node.x = dragging.x + (e.clientX - dragging.startX) / scale; node.y = dragging.y + (e.clientY - dragging.startY) / scale; const el = document.querySelector(`.node[data-id="${node.id}"]`); el.style.left = `${node.x}px`; el.style.top = `${node.y}px`; drawConnections(); }
         if (panning) { pan.x = panning.x + e.clientX - panning.startX; pan.y = panning.y + e.clientY - panning.startY; applyTransform(); }
@@ -443,6 +485,8 @@
       $('deleteBtn').onclick = removeNode; $('panelDelete').onclick = removeNode; $('centerBtn').onclick = fitMap; $('panelCenter').onclick = centerSelected;
       $('zoomIn').onclick = () => setZoom(scale + .1); $('zoomOut').onclick = () => setZoom(scale - .1);
       $('closeInspector').onclick = () => $('inspector').classList.add('hidden'); $('undoBtn').onclick = undo; $('redoBtn').onclick = redo; $('exportBtn').onclick = exportMap;
+      $('importBtn').onclick = () => $('importFile').click();
+      $('importFile').addEventListener('change', event => importMap(event.target.files[0]));
       $('mapTitle').addEventListener('input', save);
       $('resetBtn').onclick = () => { if (!confirm('Start a new map? Your current map will be replaced.')) return; checkpoint(); nodes = [{ id: 1, parent: null, text: 'My Big Idea', x: 1100, y: 700, color: palette[0] }]; nextId = 2; selected = 1; $('mapTitle').value = 'Untitled Mind Map'; render(); fitMap(); save(); setTimeout(() => editNode(1), 20); };
       document.addEventListener('keydown', e => {
