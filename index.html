@@ -219,8 +219,17 @@ like document pic to stranger apps.
 
     <!-- Row 6 -->
     <div class="row g-4 mt-3">
+      <div class="col-md-4 col-sm-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title">PixelPop Image Editor</h5>
+            <p class="card-text">Edit images privately in your browser with styled text, emojis, stickers, shapes, and doodles.</p>
+            <a href="image-editor/" class="btn btn-primary" target="_blank">Visit Tool</a>
+          </div>
+        </div>
+      </div>  <!-- ./col -->
       
-      <div class="col">
+      <div class="col-md-4 col-sm-6">
         <div class="card h-100">
           <div class="card-body">
             <h5 class="card-title">Math Problem</h5>
@@ -238,7 +247,18 @@ like document pic to stranger apps.
             <a href="mindmap.html" class="btn btn-primary" target="_blank">Visit Tool</a>
           </div>
         </div>
-      </div>  <!-- ./col -->
+      </div>
+
+      <div class="col-md-4 col-sm-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title">Beep</h5>
+            <p class="card-text">A quick sound check for your device speakers.</p>
+            <a href="beep.html" class="btn btn-primary" target="_blank">Visit Tool</a>
+          </div>
+        </div>
+      </div>
+    </div>  <!-- ./col -->
 
     </div>
   </div> <!-- ./container -->
@@ -254,7 +274,7 @@ like document pic to stranger apps.
           title,
           link,
           card,
-          wrapper: card.closest('.col-md-4')
+          wrapper: card.closest('[class*="col"]')
         };
       });
 
