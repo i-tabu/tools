@@ -48,6 +48,22 @@
     .save-state { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; white-space: nowrap; }
     .save-dot { width: 7px; height: 7px; border-radius: 50%; background: #51b98a; }
     .top-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .drive-wrap { position: relative; }
+    .drive-menu {
+      position: absolute;
+      top: 46px;
+      right: 0;
+      width: 210px;
+      padding: 7px;
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+    }
+    .drive-menu[hidden] { display: none; }
+    .drive-menu button { width: 100%; justify-content: flex-start; border: 0; box-shadow: none; }
+    .drive-menu button:hover { background: #eef5f1; transform: none; box-shadow: none; }
+    .drive-menu .danger { color: #c34c4c; }
 
     .icon-btn, .action-btn {
       border: 1px solid var(--line);
@@ -195,6 +211,16 @@
       transition: .2s;
     }
     .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .dialog { width: min(500px, calc(100% - 32px)); padding: 0; border: 0; border-radius: 16px; box-shadow: 0 24px 70px rgba(25, 48, 40, .25); }
+    .dialog::backdrop { background: rgba(23, 35, 31, .42); backdrop-filter: blur(2px); }
+    .dialog-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+    .dialog-header h2 { margin: 0; font-size: 17px; }
+    .drive-files { max-height: 360px; min-height: 100px; padding: 8px; overflow: auto; }
+    .drive-file { width: 100%; padding: 12px; text-align: left; border: 0; border-radius: 10px; background: white; cursor: pointer; }
+    .drive-file:hover { background: #eef5f1; }
+    .drive-file strong, .drive-file span { display: block; }
+    .drive-file span, .empty-state { margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .empty-state { padding: 28px; text-align: center; }
     .mobile-label { display: none; }
 
     @media (max-width: 700px) {
@@ -224,6 +250,15 @@
         <button class="action-btn" id="resetBtn"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg><span class="desktop-label">New map</span></button>
         <button class="action-btn" id="importBtn"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M5 20h14"/></svg><span class="desktop-label">Import</span><span class="mobile-label">Open</span></button>
         <input id="importFile" type="file" accept="application/json,.json" hidden>
+        <div class="drive-wrap">
+          <button class="action-btn" id="driveBtn" disabled aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="m8 3-5 9 4 7h10l4-7-5-9Z"/><path d="m8 3 4 7 4-7M3 12h9l5 7"/></svg><span class="desktop-label">Drive</span></button>
+          <div class="drive-menu" id="driveMenu" role="menu" hidden>
+            <button class="action-btn" id="connectDrive" role="menuitem">Connect Google Drive</button>
+            <button class="action-btn" id="openDrive" role="menuitem" hidden>Open from Drive…</button>
+            <button class="action-btn" id="saveDrive" role="menuitem" hidden>Save to Drive</button>
+            <button class="action-btn danger" id="disconnectDrive" role="menuitem" hidden>Disconnect</button>
+          </div>
+        </div>
         <button class="action-btn primary" id="exportBtn"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg><span class="desktop-label">Export</span><span class="mobile-label">Save</span></button>
       </div>
     </header>
@@ -267,6 +302,14 @@
     </section>
   </main>
 
+  <dialog class="dialog" id="driveDialog">
+    <div class="dialog-header">
+      <h2>Open from Google Drive</h2>
+      <button class="icon-btn" id="closeDriveDialog" aria-label="Close"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="drive-files" id="driveFiles"><p class="empty-state">Loading mind maps…</p></div>
+  </dialog>
+
   <script>
     (() => {
       const palette = ['#1f9d6a', '#ee7d52', '#5c83e6', '#ae6ed0', '#dfb143', '#e45f75'];
@@ -289,6 +332,11 @@
       const canvas = $('canvas'), stage = $('stage'), nodesLayer = $('nodes'), svg = $('connections');
       let nodes = [], selected = 1, nextId = 14, scale = 1, pan = { x: 0, y: 0 };
       let dragging = null, panning = null, history = [], future = [], saveTimer;
+      const GOOGLE_CLIENT_ID = '1001017008332-peajlj58k24flbk6q9b8s618mf934uv3.apps.googleusercontent.com';
+      const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+      const DRIVE_FOLDER = 'Branchly Workspace';
+      let tokenClient, accessToken = null, gapiReady = false, identityReady = false;
+      let driveFileId = null, driveFolderId = null;
 
       function load() {
         try {
@@ -426,16 +474,159 @@
       }
       function showToast(message) { const t = $('toast'); t.textContent = message; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 1800); }
 
+      function setDriveConnected(connected) {
+        $('connectDrive').hidden = connected;
+        $('openDrive').hidden = !connected;
+        $('saveDrive').hidden = !connected;
+        $('disconnectDrive').hidden = !connected;
+        $('driveBtn').classList.toggle('primary', connected);
+        $('driveBtn').title = connected ? 'Google Drive connected' : 'Connect Google Drive';
+      }
+
+      function closeDriveMenu() {
+        $('driveMenu').hidden = true;
+        $('driveBtn').setAttribute('aria-expanded', 'false');
+      }
+
+      async function driveRequest(url, options = {}) {
+        const headers = new Headers(options.headers || {});
+        headers.set('Authorization', `Bearer ${accessToken}`);
+        const response = await fetch(url, { ...options, headers });
+        const data = response.status === 204 ? null : await response.json();
+        if (!response.ok) {
+          if (response.status === 401) {
+            accessToken = null;
+            setDriveConnected(false);
+          }
+          throw new Error(data?.error?.message || `Google Drive request failed (${response.status})`);
+        }
+        return data;
+      }
+
+      async function findOrCreateFolder(name, parentId) {
+        const escapedName = name.replace(/'/g, "\\'");
+        const parentQuery = parentId ? ` and '${parentId}' in parents` : '';
+        const query = `name='${escapedName}' and mimeType='application/vnd.google-apps.folder' and trashed=false${parentQuery}`;
+        const fields = encodeURIComponent('files(id,name)');
+        const result = await driveRequest(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=${fields}`);
+        if (result.files?.length) return result.files[0].id;
+        const metadata = { name, mimeType: 'application/vnd.google-apps.folder' };
+        if (parentId) metadata.parents = [parentId];
+        const created = await driveRequest('https://www.googleapis.com/drive/v3/files?fields=id', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(metadata)
+        });
+        return created.id;
+      }
+
+      async function getWorkspaceFolder() {
+        if (driveFolderId) return driveFolderId;
+        const toolsFolder = await findOrCreateFolder('itabu-tools');
+        driveFolderId = await findOrCreateFolder(DRIVE_FOLDER, toolsFolder);
+        return driveFolderId;
+      }
+
+      function driveFileName() {
+        const cleanTitle = $('mapTitle').value.trim().replace(/[\\/:*?"<>|]+/g, '-');
+        return `${cleanTitle || 'Untitled Mind Map'}.branchly.json`;
+      }
+
+      async function saveToDrive() {
+        if (!accessToken) return connectDrive(saveToDrive);
+        closeDriveMenu();
+        $('saveText').textContent = 'Saving to Drive…';
+        try {
+          const metadata = { name: driveFileName(), mimeType: 'application/json' };
+          if (!driveFileId) metadata.parents = [await getWorkspaceFolder()];
+          const form = new FormData();
+          form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+          form.append('file', new Blob([snapshot()], { type: 'application/json' }));
+          const endpoint = driveFileId
+            ? `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart&fields=id,name`
+            : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name';
+          const saved = await driveRequest(endpoint, { method: driveFileId ? 'PATCH' : 'POST', body: form });
+          driveFileId = saved.id;
+          $('saveText').textContent = 'Saved to Google Drive';
+          showToast(`Saved ${saved.name || driveFileName()} to Drive`);
+        } catch (error) {
+          $('saveText').textContent = 'Saved locally';
+          showToast(`Drive save failed: ${error.message}`);
+        }
+      }
+
+      async function listDriveMaps() {
+        if (!accessToken) return connectDrive(listDriveMaps);
+        closeDriveMenu();
+        $('driveDialog').showModal();
+        $('driveFiles').innerHTML = '<p class="empty-state">Loading mind maps…</p>';
+        try {
+          const folderId = await getWorkspaceFolder();
+          const query = `'${folderId}' in parents and mimeType='application/json' and trashed=false`;
+          const fields = encodeURIComponent('files(id,name,modifiedTime,size)');
+          const order = encodeURIComponent('modifiedTime desc');
+          const result = await driveRequest(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=${fields}&orderBy=${order}`);
+          const files = result.files || [];
+          $('driveFiles').innerHTML = files.length ? '' : '<p class="empty-state">No Branchly maps yet. Save this map to create one.</p>';
+          files.forEach(file => {
+            const button = document.createElement('button');
+            button.className = 'drive-file';
+            const title = document.createElement('strong'); title.textContent = file.name.replace(/\.branchly\.json$/i, '');
+            const detail = document.createElement('span'); detail.textContent = `Updated ${new Date(file.modifiedTime).toLocaleString()}`;
+            button.append(title, detail); button.onclick = () => openDriveMap(file);
+            $('driveFiles').appendChild(button);
+          });
+        } catch (error) {
+          $('driveFiles').innerHTML = '';
+          const message = document.createElement('p'); message.className = 'empty-state'; message.textContent = `Couldn’t load Drive files: ${error.message}`;
+          $('driveFiles').appendChild(message);
+        }
+      }
+
+      async function openDriveMap(file) {
+        try {
+          const data = await driveRequest(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`);
+          importMapData(data, file.name.replace(/\.branchly\.json$/i, ''));
+          driveFileId = file.id;
+          $('driveDialog').close();
+          $('saveText').textContent = 'Opened from Google Drive';
+          showToast(`Opened ${file.name}`);
+        } catch (error) { showToast(`Couldn’t open map: ${error.message}`); }
+      }
+
+      function connectDrive(afterConnect) {
+        closeDriveMenu();
+        if (!tokenClient) return showToast('Google sign-in is still loading');
+        tokenClient.callback = response => {
+          if (response.error) return showToast(`Google sign-in failed: ${response.error}`);
+          accessToken = response.access_token;
+          setDriveConnected(true);
+          showToast('Google Drive connected');
+          if (afterConnect) afterConnect();
+        };
+        tokenClient.requestAccessToken({ prompt: accessToken ? '' : 'consent' });
+      }
+
+      function disconnectDrive() {
+        closeDriveMenu();
+        if (accessToken) google.accounts.oauth2.revoke(accessToken);
+        accessToken = null; driveFileId = null; driveFolderId = null;
+        setDriveConnected(false); showToast('Google Drive disconnected');
+      }
+
+      window.branchlyGapiLoaded = () => {
+        gapi.load('client', async () => { await gapi.client.init({}); gapiReady = true; if (identityReady) $('driveBtn').disabled = false; });
+      };
+      window.branchlyIdentityLoaded = () => {
+        tokenClient = google.accounts.oauth2.initTokenClient({ client_id: GOOGLE_CLIENT_ID, scope: DRIVE_SCOPE, callback: '' });
+        identityReady = true; if (gapiReady) $('driveBtn').disabled = false;
+      };
+
       function exportMap() {
         const content = JSON.stringify({ title: $('mapTitle').value, nodes }, null, 2);
         const blob = new Blob([content], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a');
         a.href = url; a.download = `${$('mapTitle').value.trim().replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'mind-map'}.json`; a.click(); URL.revokeObjectURL(url); showToast('Mind map exported');
       }
 
-      async function importMap(file) {
-        if (!file) return;
-        try {
-          const data = JSON.parse(await file.text());
+      function importMapData(data, fallbackTitle) {
           if (!data || !Array.isArray(data.nodes) || !data.nodes.length) throw new Error('No thoughts found');
           const ids = new Set();
           const imported = data.nodes.map(raw => {
@@ -463,8 +654,16 @@
           if (reachable.size !== imported.length) throw new Error('Branches must connect to the central thought');
           checkpoint();
           nodes = imported; nextId = Math.max(...nodes.map(node => node.id)) + 1; selected = roots[0].id;
-          $('mapTitle').value = typeof data.title === 'string' && data.title.trim() ? data.title.trim().slice(0, 120) : file.name.replace(/\.json$/i, '') || 'Imported Mind Map';
-          render(); fitMap(); save(); showToast('Mind map imported');
+          $('mapTitle').value = typeof data.title === 'string' && data.title.trim() ? data.title.trim().slice(0, 120) : fallbackTitle || 'Imported Mind Map';
+          render(); fitMap(); save();
+      }
+
+      async function importMap(file) {
+        if (!file) return;
+        try {
+          importMapData(JSON.parse(await file.text()), file.name.replace(/\.json$/i, ''));
+          driveFileId = null;
+          showToast('Mind map imported');
         } catch (error) {
           showToast(`Couldn’t import: ${error.message}`);
         } finally {
@@ -487,8 +686,21 @@
       $('closeInspector').onclick = () => $('inspector').classList.add('hidden'); $('undoBtn').onclick = undo; $('redoBtn').onclick = redo; $('exportBtn').onclick = exportMap;
       $('importBtn').onclick = () => $('importFile').click();
       $('importFile').addEventListener('change', event => importMap(event.target.files[0]));
+      $('driveBtn').onclick = event => {
+        event.stopPropagation();
+        const willOpen = $('driveMenu').hidden;
+        $('driveMenu').hidden = !willOpen;
+        $('driveBtn').setAttribute('aria-expanded', String(willOpen));
+      };
+      $('connectDrive').onclick = () => connectDrive();
+      $('openDrive').onclick = listDriveMaps;
+      $('saveDrive').onclick = saveToDrive;
+      $('disconnectDrive').onclick = disconnectDrive;
+      $('closeDriveDialog').onclick = () => $('driveDialog').close();
+      $('driveDialog').addEventListener('click', event => { if (event.target === $('driveDialog')) $('driveDialog').close(); });
+      document.addEventListener('click', event => { if (!event.target.closest('.drive-wrap')) closeDriveMenu(); });
       $('mapTitle').addEventListener('input', save);
-      $('resetBtn').onclick = () => { if (!confirm('Start a new map? Your current map will be replaced.')) return; checkpoint(); nodes = [{ id: 1, parent: null, text: 'My Big Idea', x: 1100, y: 700, color: palette[0] }]; nextId = 2; selected = 1; $('mapTitle').value = 'Untitled Mind Map'; render(); fitMap(); save(); setTimeout(() => editNode(1), 20); };
+      $('resetBtn').onclick = () => { if (!confirm('Start a new map? Your current map will be replaced.')) return; checkpoint(); nodes = [{ id: 1, parent: null, text: 'My Big Idea', x: 1100, y: 700, color: palette[0] }]; nextId = 2; selected = 1; driveFileId = null; $('mapTitle').value = 'Untitled Mind Map'; render(); fitMap(); save(); setTimeout(() => editNode(1), 20); };
       document.addEventListener('keydown', e => {
         if (e.target.isContentEditable || e.target.tagName === 'INPUT') return;
         if (e.key === 'Tab') { e.preventDefault(); addChild(); }
@@ -503,5 +715,7 @@
       load(); render(); setTimeout(fitMap, 40);
     })();
   </script>
+  <script src="https://apis.google.com/js/api.js" onload="branchlyGapiLoaded()" async defer></script>
+  <script src="https://accounts.google.com/gsi/client" onload="branchlyIdentityLoaded()" async defer></script>
 </body>
 </html>
