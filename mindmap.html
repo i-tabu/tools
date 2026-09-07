@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="A fast, private mind map editor that runs entirely in your browser.">
+  <title>Branchly — Mind Map</title>
+  <style>
+    :root {
+      --ink: #17231f;
+      --muted: #6d7a75;
+      --panel: rgba(255, 255, 255, .94);
+      --line: #dfe6e2;
+      --green: #1f9d6a;
+      --green-dark: #137a51;
+      --shadow: 0 14px 35px rgba(25, 48, 40, .12);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+    body {
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f6f8f6;
+    }
+
+    button, input { font: inherit; }
+    button { color: inherit; }
+
+    .app { height: 100%; display: grid; grid-template-rows: 64px 1fr; }
+    .topbar {
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 0 22px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(12px);
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -.03em; }
+    .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; background: var(--green); color: white; border-radius: 11px; box-shadow: 0 7px 16px rgba(31, 157, 106, .25); }
+    .brand-mark svg { width: 20px; }
+    .divider { width: 1px; height: 28px; background: var(--line); }
+    #mapTitle { border: 0; outline: 0; background: transparent; font-weight: 700; font-size: 16px; min-width: 150px; max-width: 280px; color: var(--ink); }
+    #mapTitle:focus { border-bottom: 2px solid #8bd5b5; }
+    .save-state { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .save-dot { width: 7px; height: 7px; border-radius: 50%; background: #51b98a; }
+    .top-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+    .icon-btn, .action-btn {
+      border: 1px solid var(--line);
+      background: white;
+      border-radius: 10px;
+      height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: .18s ease;
+    }
+    .icon-btn { width: 38px; padding: 0; }
+    .action-btn { padding: 0 14px; font-size: 13px; font-weight: 700; }
+    .icon-btn:hover, .action-btn:hover { border-color: #b9c9c1; transform: translateY(-1px); box-shadow: 0 5px 15px rgba(25, 48, 40, .08); }
+    .action-btn.primary { background: var(--green); color: white; border-color: var(--green); }
+    .action-btn.primary:hover { background: var(--green-dark); }
+    button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    .workspace { position: relative; min-height: 0; }
+    #canvas {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      cursor: grab;
+      background-color: #f7f9f7;
+      background-image: radial-gradient(#cfd8d3 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    #canvas.panning { cursor: grabbing; }
+    #stage { position: absolute; left: 0; top: 0; width: 2400px; height: 1500px; transform-origin: 0 0; }
+    #connections { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+    .connection { fill: none; stroke-width: 3; stroke-linecap: round; opacity: .72; }
+
+    .node {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      min-width: 126px;
+      max-width: 240px;
+      min-height: 46px;
+      padding: 11px 16px;
+      border-radius: 13px;
+      background: white;
+      border: 2px solid var(--node-color, #55ae8a);
+      box-shadow: 0 8px 22px rgba(25, 48, 40, .11);
+      cursor: move;
+      user-select: none;
+      transition: box-shadow .15s, transform .15s;
+    }
+    .node:hover { box-shadow: 0 11px 28px rgba(25, 48, 40, .16); }
+    .node.selected { box-shadow: 0 0 0 4px color-mix(in srgb, var(--node-color) 20%, transparent), 0 12px 28px rgba(25, 48, 40, .16); }
+    .node.root { min-width: 180px; min-height: 62px; padding: 15px 21px; color: white; border: 0; background: var(--node-color); border-radius: 17px; font-size: 18px; font-weight: 800; }
+    .node-text { outline: 0; line-height: 1.35; overflow-wrap: anywhere; width: 100%; }
+    .node-text[contenteditable="true"] { cursor: text; user-select: text; }
+
+    .toolbar {
+      position: absolute;
+      z-index: 5;
+      top: 18px;
+      left: 18px;
+      width: 56px;
+      padding: 7px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .toolbar .icon-btn { border: 0; background: transparent; }
+    .toolbar .icon-btn:hover { background: #eef5f1; box-shadow: none; }
+    .toolbar hr { width: 28px; border: 0; border-top: 1px solid var(--line); margin: 3px auto; }
+
+    .help-card {
+      position: absolute;
+      z-index: 4;
+      left: 88px;
+      top: 18px;
+      padding: 9px 13px;
+      color: #53615b;
+      background: rgba(255,255,255,.88);
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      font-size: 12px;
+      pointer-events: none;
+    }
+    .help-card b { color: var(--ink); }
+
+    .zoom-controls {
+      position: absolute;
+      z-index: 5;
+      left: 18px;
+      bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      padding: 5px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+    }
+    .zoom-controls .icon-btn { border: 0; background: transparent; }
+    #zoomLabel { width: 48px; text-align: center; font-size: 12px; font-weight: 700; color: var(--muted); }
+
+    .inspector {
+      position: absolute;
+      z-index: 5;
+      right: 18px;
+      top: 18px;
+      width: 238px;
+      padding: 17px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      transition: transform .2s, opacity .2s;
+    }
+    .inspector.hidden { transform: translateX(25px); opacity: 0; pointer-events: none; }
+    .inspector-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; font-size: 13px; font-weight: 800; }
+    .label { display: block; color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin: 14px 0 8px; }
+    .colors { display: flex; gap: 8px; }
+    .swatch { width: 26px; height: 26px; border: 3px solid white; border-radius: 50%; background: var(--swatch); box-shadow: 0 0 0 1px #ccd5d0; cursor: pointer; }
+    .swatch.active { box-shadow: 0 0 0 2px var(--swatch); }
+    .inspector-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 17px; }
+    .inspector-actions button { padding: 9px 7px; border: 1px solid var(--line); border-radius: 9px; background: white; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .inspector-actions .danger { color: #c34c4c; }
+
+    .toast {
+      position: absolute;
+      z-index: 20;
+      left: 50%;
+      bottom: 26px;
+      transform: translate(-50%, 15px);
+      padding: 10px 15px;
+      color: white;
+      background: #1e2d27;
+      border-radius: 10px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: .2s;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .mobile-label { display: none; }
+
+    @media (max-width: 700px) {
+      .topbar { padding: 0 12px; gap: 10px; }
+      .brand span, .save-state, .secondary-action { display: none; }
+      #mapTitle { min-width: 90px; max-width: 130px; }
+      .action-btn { padding: 0 11px; }
+      .action-btn .desktop-label { display: none; }
+      .mobile-label { display: inline; }
+      .help-card, .inspector { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <a class="brand" href="index.html" aria-label="Back to tools" style="color:inherit;text-decoration:none">
+        <span class="brand-mark"><svg viewBox="0 0 24 24"><path d="M5 5v14M5 9h6a4 4 0 0 0 4-4M5 15h7a5 5 0 0 1 5 5"/></svg></span>
+        <span>Branchly</span>
+      </a>
+      <span class="divider"></span>
+      <input id="mapTitle" value="Product Launch Plan" aria-label="Mind map title">
+      <span class="save-state"><span class="save-dot"></span><span id="saveText">Saved locally</span></span>
+      <div class="top-actions">
+        <button class="icon-btn secondary-action" id="undoBtn" title="Undo (Ctrl+Z)" aria-label="Undo"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v1"/></svg></button>
+        <button class="icon-btn secondary-action" id="redoBtn" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0-6 6v1"/></svg></button>
+        <button class="action-btn" id="resetBtn"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg><span class="desktop-label">New map</span></button>
+        <button class="action-btn" id="importBtn"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0 4 4m-4-4L8 8"/><path d="M5 20h14"/></svg><span class="desktop-label">Import</span><span class="mobile-label">Open</span></button>
+        <input id="importFile" type="file" accept="application/json,.json" hidden>
+        <button class="action-btn primary" id="exportBtn"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg><span class="desktop-label">Export</span><span class="mobile-label">Save</span></button>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <div id="canvas" aria-label="Mind map canvas">
+        <div id="stage"><svg id="connections"></svg><div id="nodes"></div></div>
+      </div>
+
+      <nav class="toolbar" aria-label="Mind map tools">
+        <button class="icon-btn" id="addChildBtn" title="Add child (Tab)" aria-label="Add child"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button class="icon-btn" id="addSiblingBtn" title="Add sibling (Enter)" aria-label="Add sibling"><svg viewBox="0 0 24 24"><path d="M4 6h7M4 18h7M7 6v12M15 12h6M18 9v6"/></svg></button>
+        <hr>
+        <button class="icon-btn" id="editBtn" title="Edit selected (E)" aria-label="Edit selected"><svg viewBox="0 0 24 24"><path d="m4 16-1 5 5-1L19 9l-4-4Z"/><path d="m13.5 6.5 4 4"/></svg></button>
+        <button class="icon-btn" id="deleteBtn" title="Delete selected" aria-label="Delete selected"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg></button>
+        <hr>
+        <button class="icon-btn" id="centerBtn" title="Fit map" aria-label="Fit map"><svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg></button>
+      </nav>
+
+      <div class="help-card"><b>Tip:</b> Select a thought, then press <b>Tab</b> to branch out</div>
+
+      <aside class="inspector hidden" id="inspector">
+        <div class="inspector-title"><span>Style thought</span><button class="icon-btn" id="closeInspector" aria-label="Close inspector" style="width:28px;height:28px;border:0"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+        <span class="label">Branch color</span>
+        <div class="colors" id="colors"></div>
+        <span class="label">Quick actions</span>
+        <div class="inspector-actions">
+          <button id="panelChild">+ Child</button>
+          <button id="panelEdit">Edit text</button>
+          <button class="danger" id="panelDelete">Delete</button>
+          <button id="panelCenter">Center</button>
+        </div>
+      </aside>
+
+      <div class="zoom-controls">
+        <button class="icon-btn" id="zoomOut" aria-label="Zoom out"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+        <span id="zoomLabel">100%</span>
+        <button class="icon-btn" id="zoomIn" aria-label="Zoom in"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      </div>
+      <div class="toast" id="toast"></div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const palette = ['#1f9d6a', '#ee7d52', '#5c83e6', '#ae6ed0', '#dfb143', '#e45f75'];
+      const defaults = [
+        { id: 1, parent: null, text: 'Product Launch', x: 1050, y: 690, color: palette[0] },
+        { id: 2, parent: 1, text: 'Research', x: 760, y: 455, color: palette[2] },
+        { id: 3, parent: 2, text: 'Customer interviews', x: 485, y: 365, color: palette[2] },
+        { id: 4, parent: 2, text: 'Competitor scan', x: 485, y: 495, color: palette[2] },
+        { id: 5, parent: 1, text: 'Build', x: 1370, y: 430, color: palette[1] },
+        { id: 6, parent: 5, text: 'Prototype', x: 1635, y: 350, color: palette[1] },
+        { id: 7, parent: 5, text: 'User testing', x: 1635, y: 485, color: palette[1] },
+        { id: 8, parent: 1, text: 'Launch', x: 1390, y: 890, color: palette[3] },
+        { id: 9, parent: 8, text: 'Press kit', x: 1660, y: 810, color: palette[3] },
+        { id: 10, parent: 8, text: 'Launch event', x: 1660, y: 945, color: palette[3] },
+        { id: 11, parent: 1, text: 'Measure', x: 750, y: 925, color: palette[4] },
+        { id: 12, parent: 11, text: 'Activation rate', x: 475, y: 855, color: palette[4] },
+        { id: 13, parent: 11, text: 'Feedback loop', x: 475, y: 985, color: palette[4] }
+      ];
+      const $ = id => document.getElementById(id);
+      const canvas = $('canvas'), stage = $('stage'), nodesLayer = $('nodes'), svg = $('connections');
+      let nodes = [], selected = 1, nextId = 14, scale = 1, pan = { x: 0, y: 0 };
+      let dragging = null, panning = null, history = [], future = [], saveTimer;
+
+      function load() {
+        try {
+          const saved = JSON.parse(localStorage.getItem('branchly-map'));
+          nodes = saved?.nodes?.length ? saved.nodes : structuredClone(defaults);
+          $('mapTitle').value = saved?.title || 'Product Launch Plan';
+          nextId = Math.max(...nodes.map(n => n.id)) + 1;
+        } catch { nodes = structuredClone(defaults); }
+      }
+
+      function snapshot() { return JSON.stringify({ nodes, title: $('mapTitle').value }); }
+      function checkpoint() { history.push(snapshot()); if (history.length > 60) history.shift(); future = []; }
+      function restore(data) {
+        const state = JSON.parse(data); nodes = state.nodes; $('mapTitle').value = state.title; selected = nodes.some(n => n.id === selected) ? selected : nodes[0]?.id; render(); save();
+      }
+      function undo() { if (!history.length) return; future.push(snapshot()); restore(history.pop()); }
+      function redo() { if (!future.length) return; history.push(snapshot()); restore(future.pop()); }
+
+      function save() {
+        $('saveText').textContent = 'Saving…';
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => {
+          localStorage.setItem('branchly-map', snapshot());
+          $('saveText').textContent = 'Saved locally';
+        }, 220);
+      }
+
+      function applyTransform() {
+        stage.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${scale})`;
+        $('zoomLabel').textContent = `${Math.round(scale * 100)}%`;
+      }
+
+      function render() {
+        nodesLayer.innerHTML = '';
+        nodes.forEach(node => {
+          const el = document.createElement('div');
+          el.className = `node${node.parent === null ? ' root' : ''}${node.id === selected ? ' selected' : ''}`;
+          el.dataset.id = node.id; el.style.left = `${node.x}px`; el.style.top = `${node.y}px`; el.style.setProperty('--node-color', node.color);
+          const text = document.createElement('div'); text.className = 'node-text'; text.textContent = node.text; el.appendChild(text);
+          el.addEventListener('pointerdown', startDrag);
+          el.addEventListener('dblclick', () => editNode(node.id));
+          nodesLayer.appendChild(el);
+        });
+        requestAnimationFrame(drawConnections);
+        $('inspector').classList.toggle('hidden', !nodes.some(n => n.id === selected));
+        renderColors();
+      }
+
+      function drawConnections() {
+        svg.innerHTML = '';
+        nodes.forEach(node => {
+          if (node.parent === null) return;
+          const parentEl = document.querySelector(`.node[data-id="${node.parent}"]`);
+          const childEl = document.querySelector(`.node[data-id="${node.id}"]`);
+          if (!parentEl || !childEl) return;
+          const p = nodes.find(n => n.id === node.parent);
+          const leftward = node.x < p.x;
+          const x1 = p.x + (leftward ? 0 : parentEl.offsetWidth), y1 = p.y + parentEl.offsetHeight / 2;
+          const x2 = node.x + (leftward ? childEl.offsetWidth : 0), y2 = node.y + childEl.offsetHeight / 2;
+          const bend = Math.max(55, Math.abs(x2 - x1) * .48);
+          const d = leftward ? `M${x1} ${y1} C${x1-bend} ${y1},${x2+bend} ${y2},${x2} ${y2}` : `M${x1} ${y1} C${x1+bend} ${y1},${x2-bend} ${y2},${x2} ${y2}`;
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', d); path.setAttribute('class', 'connection'); path.setAttribute('stroke', node.color); svg.appendChild(path);
+        });
+      }
+
+      function select(id) { selected = id; render(); }
+      function startDrag(e) {
+        if (e.target.isContentEditable) return;
+        e.stopPropagation();
+        const id = Number(e.currentTarget.dataset.id); select(id);
+        const node = nodes.find(n => n.id === id);
+        checkpoint();
+        dragging = { id, startX: e.clientX, startY: e.clientY, x: node.x, y: node.y };
+        e.currentTarget.setPointerCapture(e.pointerId);
+      }
+
+      function addChild(parentId = selected) {
+        const parent = nodes.find(n => n.id === parentId); if (!parent) return;
+        checkpoint();
+        const siblings = nodes.filter(n => n.parent === parentId);
+        const direction = parent.parent === null ? (siblings.length % 2 ? -1 : 1) : Math.sign(parent.x - (nodes.find(n => n.id === parent.parent)?.x || 0)) || 1;
+        const color = parent.parent === null ? palette[(siblings.length + 1) % palette.length] : parent.color;
+        const node = { id: nextId++, parent: parentId, text: 'New thought', x: parent.x + direction * 275, y: parent.y + (siblings.length - 1) * 82, color };
+        nodes.push(node); selected = node.id; render(); save(); setTimeout(() => editNode(node.id), 20);
+      }
+
+      function addSibling() {
+        const node = nodes.find(n => n.id === selected); if (!node) return;
+        if (node.parent === null) return addChild(node.id);
+        addChild(node.parent);
+      }
+
+      function editNode(id = selected) {
+        const node = nodes.find(n => n.id === id), el = document.querySelector(`.node[data-id="${id}"] .node-text`); if (!node || !el) return;
+        checkpoint(); el.contentEditable = 'true'; el.focus(); document.execCommand('selectAll', false, null);
+        const finish = () => { el.contentEditable = 'false'; node.text = el.textContent.trim() || 'Untitled'; el.textContent = node.text; drawConnections(); save(); };
+        el.addEventListener('blur', finish, { once: true });
+        el.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); el.blur(); } if (e.key === 'Escape') el.blur(); });
+      }
+
+      function removeNode() {
+        const node = nodes.find(n => n.id === selected); if (!node || node.parent === null) return showToast('The central thought can’t be deleted');
+        checkpoint();
+        const remove = new Set([selected]); let changed = true;
+        while (changed) { changed = false; nodes.forEach(n => { if (remove.has(n.parent) && !remove.has(n.id)) { remove.add(n.id); changed = true; } }); }
+        selected = node.parent; nodes = nodes.filter(n => !remove.has(n.id)); render(); save(); showToast(`Deleted ${remove.size} thought${remove.size > 1 ? 's' : ''}`);
+      }
+
+      function renderColors() {
+        const current = nodes.find(n => n.id === selected);
+        $('colors').innerHTML = '';
+        palette.forEach(color => { const b = document.createElement('button'); b.className = `swatch${current?.color === color ? ' active' : ''}`; b.style.setProperty('--swatch', color); b.title = color; b.onclick = () => changeColor(color); $('colors').appendChild(b); });
+      }
+      function changeColor(color) {
+        const node = nodes.find(n => n.id === selected); if (!node) return; checkpoint();
+        const recolor = id => { nodes.filter(n => n.id === id || n.parent === id).forEach((n, i) => { n.color = color; if (i) recolor(n.id); }); };
+        recolor(node.id); render(); save();
+      }
+
+      function setZoom(value, cx = canvas.clientWidth / 2, cy = canvas.clientHeight / 2) {
+        const next = Math.min(1.6, Math.max(.4, value));
+        const worldX = (cx - pan.x) / scale, worldY = (cy - pan.y) / scale;
+        pan.x = cx - worldX * next; pan.y = cy - worldY * next; scale = next; applyTransform();
+      }
+      function fitMap() {
+        const pad = 150, minX = Math.min(...nodes.map(n => n.x)), maxX = Math.max(...nodes.map(n => n.x + 220));
+        const minY = Math.min(...nodes.map(n => n.y)), maxY = Math.max(...nodes.map(n => n.y + 70));
+        scale = Math.min(1, Math.max(.4, Math.min((canvas.clientWidth - pad * 2) / (maxX - minX), (canvas.clientHeight - pad) / (maxY - minY))));
+        pan.x = (canvas.clientWidth - (minX + maxX) * scale) / 2; pan.y = (canvas.clientHeight - (minY + maxY) * scale) / 2; applyTransform();
+      }
+      function centerSelected() {
+        const node = nodes.find(n => n.id === selected); if (!node) return;
+        pan.x = canvas.clientWidth / 2 - (node.x + 90) * scale; pan.y = canvas.clientHeight / 2 - (node.y + 28) * scale; applyTransform();
+      }
+      function showToast(message) { const t = $('toast'); t.textContent = message; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 1800); }
+
+      function exportMap() {
+        const content = JSON.stringify({ title: $('mapTitle').value, nodes }, null, 2);
+        const blob = new Blob([content], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a');
+        a.href = url; a.download = `${$('mapTitle').value.trim().replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'mind-map'}.json`; a.click(); URL.revokeObjectURL(url); showToast('Mind map exported');
+      }
+
+      async function importMap(file) {
+        if (!file) return;
+        try {
+          const data = JSON.parse(await file.text());
+          if (!data || !Array.isArray(data.nodes) || !data.nodes.length) throw new Error('No thoughts found');
+          const ids = new Set();
+          const imported = data.nodes.map(raw => {
+            const id = Number(raw.id), parent = raw.parent === null ? null : Number(raw.parent);
+            if (!Number.isInteger(id) || ids.has(id) || typeof raw.text !== 'string' || !Number.isFinite(Number(raw.x)) || !Number.isFinite(Number(raw.y))) {
+              throw new Error('Invalid thought data');
+            }
+            ids.add(id);
+            return { id, parent, text: raw.text.trim() || 'Untitled', x: Number(raw.x), y: Number(raw.y), color: palette.includes(raw.color) ? raw.color : palette[0] };
+          });
+          const roots = imported.filter(node => node.parent === null);
+          if (roots.length !== 1 || imported.some(node => node.parent !== null && !ids.has(node.parent))) {
+            throw new Error('Invalid branch structure');
+          }
+          const reachable = new Set([roots[0].id]);
+          let foundBranch = true;
+          while (foundBranch) {
+            foundBranch = false;
+            imported.forEach(node => {
+              if (node.parent !== null && reachable.has(node.parent) && !reachable.has(node.id)) {
+                reachable.add(node.id); foundBranch = true;
+              }
+            });
+          }
+          if (reachable.size !== imported.length) throw new Error('Branches must connect to the central thought');
+          checkpoint();
+          nodes = imported; nextId = Math.max(...nodes.map(node => node.id)) + 1; selected = roots[0].id;
+          $('mapTitle').value = typeof data.title === 'string' && data.title.trim() ? data.title.trim().slice(0, 120) : file.name.replace(/\.json$/i, '') || 'Imported Mind Map';
+          render(); fitMap(); save(); showToast('Mind map imported');
+        } catch (error) {
+          showToast(`Couldn’t import: ${error.message}`);
+        } finally {
+          $('importFile').value = '';
+        }
+      }
+
+      document.addEventListener('pointermove', e => {
+        if (dragging) { const node = nodes.find(n => n.id === dragging.id); node.x = dragging.x + (e.clientX - dragging.startX) / scale; node.y = dragging.y + (e.clientY - dragging.startY) / scale; const el = document.querySelector(`.node[data-id="${node.id}"]`); el.style.left = `${node.x}px`; el.style.top = `${node.y}px`; drawConnections(); }
+        if (panning) { pan.x = panning.x + e.clientX - panning.startX; pan.y = panning.y + e.clientY - panning.startY; applyTransform(); }
+      });
+      document.addEventListener('pointerup', () => { if (dragging) save(); dragging = null; panning = null; canvas.classList.remove('panning'); });
+      canvas.addEventListener('pointerdown', e => { if (e.target !== canvas && e.target !== stage && e.target !== nodesLayer && e.target !== svg) return; panning = { startX: e.clientX, startY: e.clientY, x: pan.x, y: pan.y }; canvas.classList.add('panning'); });
+      canvas.addEventListener('wheel', e => { e.preventDefault(); setZoom(scale * (e.deltaY > 0 ? .9 : 1.1), e.clientX, e.clientY - 64); }, { passive: false });
+
+      $('addChildBtn').onclick = () => addChild(); $('panelChild').onclick = () => addChild();
+      $('addSiblingBtn').onclick = addSibling; $('editBtn').onclick = () => editNode(); $('panelEdit').onclick = () => editNode();
+      $('deleteBtn').onclick = removeNode; $('panelDelete').onclick = removeNode; $('centerBtn').onclick = fitMap; $('panelCenter').onclick = centerSelected;
+      $('zoomIn').onclick = () => setZoom(scale + .1); $('zoomOut').onclick = () => setZoom(scale - .1);
+      $('closeInspector').onclick = () => $('inspector').classList.add('hidden'); $('undoBtn').onclick = undo; $('redoBtn').onclick = redo; $('exportBtn').onclick = exportMap;
+      $('importBtn').onclick = () => $('importFile').click();
+      $('importFile').addEventListener('change', event => importMap(event.target.files[0]));
+      $('mapTitle').addEventListener('input', save);
+      $('resetBtn').onclick = () => { if (!confirm('Start a new map? Your current map will be replaced.')) return; checkpoint(); nodes = [{ id: 1, parent: null, text: 'My Big Idea', x: 1100, y: 700, color: palette[0] }]; nextId = 2; selected = 1; $('mapTitle').value = 'Untitled Mind Map'; render(); fitMap(); save(); setTimeout(() => editNode(1), 20); };
+      document.addEventListener('keydown', e => {
+        if (e.target.isContentEditable || e.target.tagName === 'INPUT') return;
+        if (e.key === 'Tab') { e.preventDefault(); addChild(); }
+        else if (e.key === 'Enter') { e.preventDefault(); addSibling(); }
+        else if (e.key === 'Delete' || e.key === 'Backspace') removeNode();
+        else if (e.key.toLowerCase() === 'e') editNode();
+        else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+        else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+      });
+      window.addEventListener('resize', fitMap);
+
+      load(); render(); setTimeout(fitMap, 40);
+    })();
+  </script>
+</body>
+</html>
