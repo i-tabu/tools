@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A fast, keyboard-friendly calculator that runs entirely in your browser.">
+  <title>Calculator | i-Tabu Tools</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --background: #0b1020;
+      --panel: rgba(22, 29, 51, 0.92);
+      --key: #252e4b;
+      --key-hover: #313c61;
+      --muted: #aab4d0;
+      --text: #f7f8ff;
+      --accent: #7c6cff;
+      --accent-hover: #9184ff;
+      --operator: #34305d;
+      --danger: #ff8a98;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 1.25rem;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(124, 108, 255, 0.2), transparent 34rem),
+        radial-gradient(circle at 90% 85%, rgba(55, 201, 181, 0.12), transparent 28rem),
+        var(--background);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    main { width: min(100%, 25rem); }
+
+    .back-link {
+      display: inline-flex;
+      gap: 0.45rem;
+      align-items: center;
+      margin-bottom: 1rem;
+      color: var(--muted);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .back-link:hover { color: var(--text); }
+
+    .calculator {
+      overflow: hidden;
+      padding: 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 1.5rem;
+      background: var(--panel);
+      box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.36);
+      backdrop-filter: blur(16px);
+    }
+
+    .display {
+      min-height: 9rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: flex-end;
+      padding: 1.25rem 0.75rem;
+      overflow: hidden;
+    }
+
+    .calculation {
+      min-height: 1.5rem;
+      max-width: 100%;
+      color: var(--muted);
+      font-size: 1rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .result {
+      max-width: 100%;
+      margin-top: 0.35rem;
+      font-size: clamp(2.5rem, 13vw, 4rem);
+      font-variant-numeric: tabular-nums;
+      font-weight: 650;
+      letter-spacing: -0.06em;
+      line-height: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .keys {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.65rem;
+    }
+
+    button {
+      min-height: 4rem;
+      border: 0;
+      border-radius: 1rem;
+      background: var(--key);
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      font-size: 1.25rem;
+      font-weight: 650;
+      transition: transform 100ms ease, background 100ms ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:hover { background: var(--key-hover); }
+    button:active { transform: scale(0.94); }
+    button:focus-visible { outline: 3px solid #b9b1ff; outline-offset: 2px; }
+    button[data-action="clear"] { color: var(--danger); }
+    button[data-operation] { background: var(--operator); color: #cbc6ff; }
+    button[data-operation]:hover { background: #443d78; }
+    button[aria-pressed="true"] { background: var(--accent); color: white; }
+    button[data-action="equals"] { background: var(--accent); color: white; }
+    button[data-action="equals"]:hover { background: var(--accent-hover); }
+
+    .hint {
+      margin: 1rem 0 0;
+      color: var(--muted);
+      text-align: center;
+      font-size: 0.82rem;
+    }
+
+    @media (max-height: 680px) {
+      .display { min-height: 6.5rem; padding-block: 0.75rem; }
+      button { min-height: 3.25rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      button { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back-link" href="index.html" aria-label="Back to all tools">← All tools</a>
+    <section class="calculator" aria-label="Calculator">
+      <div class="display" aria-live="polite" aria-atomic="true">
+        <div class="calculation" id="calculation">Ready</div>
+        <div class="result" id="result">0</div>
+      </div>
+
+      <div class="keys">
+        <button type="button" data-action="clear" aria-label="Clear">AC</button>
+        <button type="button" data-action="sign" aria-label="Change sign">+/−</button>
+        <button type="button" data-action="percent" aria-label="Percent">%</button>
+        <button type="button" data-operation="divide" aria-label="Divide">÷</button>
+
+        <button type="button" data-number="7">7</button>
+        <button type="button" data-number="8">8</button>
+        <button type="button" data-number="9">9</button>
+        <button type="button" data-operation="multiply" aria-label="Multiply">×</button>
+
+        <button type="button" data-number="4">4</button>
+        <button type="button" data-number="5">5</button>
+        <button type="button" data-number="6">6</button>
+        <button type="button" data-operation="subtract" aria-label="Subtract">−</button>
+
+        <button type="button" data-number="1">1</button>
+        <button type="button" data-number="2">2</button>
+        <button type="button" data-number="3">3</button>
+        <button type="button" data-operation="add" aria-label="Add">+</button>
+
+        <button type="button" data-action="backspace" aria-label="Delete last digit">⌫</button>
+        <button type="button" data-number="0">0</button>
+        <button type="button" data-action="decimal" aria-label="Decimal point">.</button>
+        <button type="button" data-action="equals" aria-label="Equals">=</button>
+      </div>
+    </section>
+    <p class="hint">Tip: you can use your keyboard to calculate.</p>
+  </main>
+
+  <script>
+    const resultElement = document.getElementById('result');
+    const calculationElement = document.getElementById('calculation');
+    const keys = document.querySelector('.keys');
+    const operationSymbols = { add: '+', subtract: '−', multiply: '×', divide: '÷' };
+    let displayValue = '0';
+    let firstOperand = null;
+    let pendingOperation = null;
+    let waitingForOperand = false;
+    let expression = '';
+    let lastOperation = null;
+    let lastOperand = null;
+
+    function formatNumber(value) {
+      if (!Number.isFinite(value)) return 'Error';
+      const rounded = Number.parseFloat(value.toPrecision(12));
+      const plain = String(rounded);
+      return plain.length > 14 ? rounded.toExponential(8) : plain;
+    }
+
+    function calculate(left, right, operation) {
+      if (operation === 'add') return left + right;
+      if (operation === 'subtract') return left - right;
+      if (operation === 'multiply') return left * right;
+      if (operation === 'divide') return right === 0 ? NaN : left / right;
+      return right;
+    }
+
+    function updateDisplay() {
+      resultElement.textContent = displayValue;
+      calculationElement.textContent = expression || 'Ready';
+      document.querySelectorAll('[data-operation]').forEach(button => {
+        button.setAttribute('aria-pressed', String(button.dataset.operation === pendingOperation && waitingForOperand));
+      });
+    }
+
+    function reset() {
+      displayValue = '0';
+      firstOperand = null;
+      pendingOperation = null;
+      waitingForOperand = false;
+      expression = '';
+      lastOperation = null;
+      lastOperand = null;
+      updateDisplay();
+    }
+
+    function inputDigit(digit) {
+      if (displayValue === 'Error' || waitingForOperand) {
+        displayValue = digit;
+        waitingForOperand = false;
+      } else if (displayValue === '0') {
+        displayValue = digit;
+      } else if (displayValue.replace('-', '').replace('.', '').length < 12) {
+        displayValue += digit;
+      }
+      updateDisplay();
+    }
+
+    function inputDecimal() {
+      if (displayValue === 'Error' || waitingForOperand) {
+        displayValue = '0.';
+        waitingForOperand = false;
+      } else if (!displayValue.includes('.')) {
+        displayValue += '.';
+      }
+      updateDisplay();
+    }
+
+    function chooseOperation(nextOperation) {
+      const inputValue = Number.parseFloat(displayValue);
+      if (!Number.isFinite(inputValue)) return reset();
+
+      if (pendingOperation && !waitingForOperand) {
+        const value = calculate(firstOperand, inputValue, pendingOperation);
+        displayValue = formatNumber(value);
+        if (displayValue === 'Error') {
+          expression = 'Cannot divide by zero';
+          firstOperand = null;
+          pendingOperation = null;
+          waitingForOperand = true;
+          return updateDisplay();
+        }
+        firstOperand = value;
+      } else if (firstOperand === null) {
+        firstOperand = inputValue;
+      }
+
+      pendingOperation = nextOperation;
+      waitingForOperand = true;
+      expression = `${displayValue} ${operationSymbols[nextOperation]}`;
+      lastOperation = null;
+      updateDisplay();
+    }
+
+    function equals() {
+      const inputValue = Number.parseFloat(displayValue);
+      const operation = pendingOperation || lastOperation;
+      const rightOperand = pendingOperation ? inputValue : lastOperand;
+      const leftOperand = pendingOperation ? firstOperand : inputValue;
+      if (!operation || rightOperand === null || leftOperand === null) return;
+
+      const value = calculate(leftOperand, rightOperand, operation);
+      expression = `${formatNumber(leftOperand)} ${operationSymbols[operation]} ${formatNumber(rightOperand)} =`;
+      displayValue = formatNumber(value);
+      if (displayValue === 'Error') expression = 'Cannot divide by zero';
+      lastOperation = operation;
+      lastOperand = rightOperand;
+      firstOperand = null;
+      pendingOperation = null;
+      waitingForOperand = true;
+      updateDisplay();
+    }
+
+    function performAction(action) {
+      if (action === 'clear') return reset();
+      if (action === 'equals') return equals();
+      if (action === 'decimal') return inputDecimal();
+      if (displayValue === 'Error') return reset();
+      if (action === 'sign' && displayValue !== '0') displayValue = String(Number.parseFloat(displayValue) * -1);
+      if (action === 'percent') displayValue = formatNumber(Number.parseFloat(displayValue) / 100);
+      if (action === 'backspace' && !waitingForOperand) {
+        displayValue = displayValue.length > 1 ? displayValue.slice(0, -1) : '0';
+        if (displayValue === '-') displayValue = '0';
+      }
+      updateDisplay();
+    }
+
+    keys.addEventListener('click', event => {
+      const button = event.target.closest('button');
+      if (!button) return;
+      if (button.dataset.number) inputDigit(button.dataset.number);
+      if (button.dataset.operation) chooseOperation(button.dataset.operation);
+      if (button.dataset.action) performAction(button.dataset.action);
+    });
+
+    document.addEventListener('keydown', event => {
+      const operationKeys = { '+': 'add', '-': 'subtract', '*': 'multiply', '/': 'divide' };
+      if (/^\d$/.test(event.key)) inputDigit(event.key);
+      else if (operationKeys[event.key]) chooseOperation(operationKeys[event.key]);
+      else if (event.key === '.' || event.key === ',') inputDecimal();
+      else if (event.key === 'Enter' || event.key === '=') equals();
+      else if (event.key === 'Escape' || event.key === 'Delete') reset();
+      else if (event.key === 'Backspace') performAction('backspace');
+      else if (event.key === '%') performAction('percent');
+      else return;
+      event.preventDefault();
+    });
+
+    updateDisplay();
+  </script>
+</body>
+</html>
