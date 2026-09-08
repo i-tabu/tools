@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HTTP Request Sender</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background: #f4f7fb; }
+    .request-card { max-width: 960px; margin: 3rem auto; border: 0; box-shadow: 0 0.75rem 2rem rgba(25, 45, 80, 0.1); }
+    .header-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: .5rem; }
+    textarea { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; resize: vertical; }
+    #responseBody { min-height: 14rem; white-space: pre-wrap; word-break: break-word; }
+    #responseHeaders { white-space: pre-wrap; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <main class="container px-3">
+    <section class="card request-card">
+      <div class="card-body p-4 p-md-5">
+        <h1 class="h2 mb-1">HTTP Request Sender</h1>
+        <p class="text-secondary mb-4">Build and send an HTTP request from your browser.</p>
+
+        <form id="requestForm">
+          <label for="requestUrl" class="form-label">Request</label>
+          <div class="input-group mb-4">
+            <select id="requestMethod" class="form-select flex-grow-0" style="width: 8rem" aria-label="HTTP method">
+              <option>GET</option>
+              <option>POST</option>
+              <option>PUT</option>
+              <option>PATCH</option>
+              <option>DELETE</option>
+              <option>HEAD</option>
+              <option>OPTIONS</option>
+            </select>
+            <input id="requestUrl" type="url" class="form-control" placeholder="https://api.example.com/items" required>
+            <button id="sendButton" type="submit" class="btn btn-primary px-4">Send</button>
+          </div>
+
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <label class="form-label mb-0">Headers</label>
+            <button id="addHeaderButton" type="button" class="btn btn-sm btn-outline-primary">+ Add header</button>
+          </div>
+          <div id="headersContainer" class="d-grid gap-2 mb-4"></div>
+
+          <div id="bodySection" class="mb-4" hidden>
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <label for="requestBody" class="form-label mb-0">Body</label>
+              <small class="text-secondary">Sent exactly as entered</small>
+            </div>
+            <textarea id="requestBody" class="form-control" rows="8" placeholder='{"name": "Example"}'></textarea>
+          </div>
+        </form>
+
+        <div id="errorMessage" class="alert alert-danger" role="alert" hidden></div>
+
+        <section id="responseSection" aria-live="polite" hidden>
+          <hr class="my-4">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <h2 class="h4 mb-0">Response</h2>
+            <span id="responseStatus" class="badge text-bg-secondary"></span>
+          </div>
+          <details class="mb-3">
+            <summary class="fw-semibold">Response headers</summary>
+            <div id="responseHeaders" class="bg-light border rounded p-3 mt-2 small"></div>
+          </details>
+          <label for="responseBody" class="form-label fw-semibold">Response body</label>
+          <pre id="responseBody" class="bg-dark text-light rounded p-3 mb-0"></pre>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <template id="headerRowTemplate">
+    <div class="header-row">
+      <input type="text" class="form-control header-name" placeholder="Header name" aria-label="Header name">
+      <input type="text" class="form-control header-value" placeholder="Header value" aria-label="Header value">
+      <button type="button" class="btn btn-outline-danger remove-header" aria-label="Remove header">&times;</button>
+    </div>
+  </template>
+
+  <script>
+    const methodsWithoutBody = new Set(['GET', 'HEAD']);
+    const form = document.getElementById('requestForm');
+    const methodSelect = document.getElementById('requestMethod');
+    const bodySection = document.getElementById('bodySection');
+    const headersContainer = document.getElementById('headersContainer');
+    const addHeaderButton = document.getElementById('addHeaderButton');
+    const sendButton = document.getElementById('sendButton');
+    const errorMessage = document.getElementById('errorMessage');
+    const responseSection = document.getElementById('responseSection');
+
+    function addHeader(name = '', value = '') {
+      const row = document.getElementById('headerRowTemplate').content.firstElementChild.cloneNode(true);
+      row.querySelector('.header-name').value = name;
+      row.querySelector('.header-value').value = value;
+      row.querySelector('.remove-header').addEventListener('click', () => row.remove());
+      headersContainer.appendChild(row);
+    }
+
+    function updateBodyVisibility() {
+      bodySection.hidden = methodsWithoutBody.has(methodSelect.value);
+    }
+
+    addHeaderButton.addEventListener('click', () => addHeader());
+    methodSelect.addEventListener('change', updateBodyVisibility);
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      errorMessage.hidden = true;
+      responseSection.hidden = true;
+
+      const headers = new Headers();
+      for (const row of headersContainer.querySelectorAll('.header-row')) {
+        const name = row.querySelector('.header-name').value.trim();
+        const value = row.querySelector('.header-value').value.trim();
+        if (!name && !value) continue;
+        if (!name) {
+          errorMessage.textContent = 'Every header value must have a header name.';
+          errorMessage.hidden = false;
+          return;
+        }
+        try {
+          headers.append(name, value);
+        } catch (error) {
+          errorMessage.textContent = `Invalid header “${name}”: ${error.message}`;
+          errorMessage.hidden = false;
+          return;
+        }
+      }
+
+      const method = methodSelect.value;
+      const options = { method, headers };
+      if (!methodsWithoutBody.has(method)) {
+        options.body = document.getElementById('requestBody').value;
+      }
+
+      sendButton.disabled = true;
+      sendButton.textContent = 'Sending…';
+      try {
+        const response = await fetch(document.getElementById('requestUrl').value, options);
+        const rawBody = await response.text();
+        let displayedBody = rawBody;
+        try {
+          displayedBody = JSON.stringify(JSON.parse(rawBody), null, 2);
+        } catch (_) {
+          // Non-JSON responses are displayed unchanged.
+        }
+
+        document.getElementById('responseStatus').textContent = `${response.status} ${response.statusText}`.trim();
+        document.getElementById('responseStatus').className = `badge ${response.ok ? 'text-bg-success' : 'text-bg-danger'}`;
+        document.getElementById('responseHeaders').textContent = [...response.headers]
+          .map(([name, value]) => `${name}: ${value}`)
+          .join('\n') || 'No response headers exposed by the browser.';
+        document.getElementById('responseBody').textContent = displayedBody || '(empty response body)';
+        responseSection.hidden = false;
+      } catch (error) {
+        errorMessage.textContent = `Request failed: ${error.message}. The server may not allow browser requests (CORS).`;
+        errorMessage.hidden = false;
+      } finally {
+        sendButton.disabled = false;
+        sendButton.textContent = 'Send';
+      }
+    });
+
+    addHeader('Content-Type', 'application/json');
+    updateBodyVisibility();
+  </script>
+</body>
+</html>
