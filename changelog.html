@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Changelog | i-tabu Tools</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background: #f8f9fa; }
+    main { max-width: 850px; }
+    #changelog h2 { margin-top: 2rem; font-size: 1.5rem; }
+    #changelog li { margin-bottom: .5rem; }
+    #changelog { overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <main class="container py-5">
+    <nav class="d-flex flex-wrap gap-3 mb-4" aria-label="Changelog navigation">
+      <a href="./">← Back to Tools</a>
+      <a href="CHANGELOG.md">View Markdown file</a>
+    </nav>
+    <p class="text-secondary">This changelog is loaded from this site's deployment. Look for a change below to check whether it is included in this version. Commit dates may differ from publication dates.</p>
+    <p id="status" role="status">Loading changelog…</p>
+    <article id="changelog" aria-label="Changelog"></article>
+    <button id="retry" class="btn btn-outline-secondary" type="button" hidden>Try again</button>
+    <noscript>Enable JavaScript to view the changelog here, or open the Markdown file above.</noscript>
+  </main>
+  <script>
+    const status = document.getElementById('status');
+    const content = document.getElementById('changelog');
+    const retry = document.getElementById('retry');
+
+    // Render the headings, paragraphs and lists used in CHANGELOG.md as text,
+    // so Markdown content cannot inject HTML into the page.
+    function renderMarkdown(markdown) {
+      const fragment = document.createDocumentFragment();
+      let list = null;
+      for (const line of markdown.split(/\r?\n/)) {
+        if (!line.trim()) { list = null; continue; }
+        const heading = line.match(/^(#{1,6})\s+(.+)$/);
+        const item = line.match(/^[-*]\s+(.+)$/);
+        let element;
+        if (heading) {
+          list = null;
+          element = document.createElement('h' + heading[1].length);
+          element.textContent = heading[2];
+          fragment.appendChild(element);
+        } else if (item) {
+          if (!list) {
+            list = document.createElement('ul');
+            fragment.appendChild(list);
+          }
+          element = document.createElement('li');
+          element.textContent = item[1];
+          list.appendChild(element);
+        } else {
+          list = null;
+          element = document.createElement('p');
+          element.textContent = line;
+          fragment.appendChild(element);
+        }
+      }
+      content.replaceChildren(fragment);
+    }
+
+    async function loadChangelog() {
+      status.hidden = false;
+      status.textContent = 'Loading changelog…';
+      retry.hidden = true;
+      content.replaceChildren();
+      try {
+        const response = await fetch('./CHANGELOG.md', { cache: 'no-store' });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const markdown = await response.text();
+        if (!markdown.trim()) throw new Error('Empty changelog');
+        renderMarkdown(markdown);
+        status.hidden = true;
+      } catch (error) {
+        status.textContent = 'Unable to load the changelog. Try again or open the Markdown file above.';
+        retry.hidden = false;
+      }
+    }
+    retry.addEventListener('click', loadChangelog);
+    loadChangelog();
+  </script>
+</body>
+</html>
