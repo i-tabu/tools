@@ -99,39 +99,81 @@
     }, 'image/png');
   }
   $('download-qr').addEventListener('click', () => { if (current) downloadPNG($('qr'), '-qr.png'); });
-  $('download-card').addEventListener('click', () => {
-    if (!current) return;
+  // Paint the displayed card's measured layout instead of maintaining a second design.
+  function renderCard(card) {
+    const bounds = card.getBoundingClientRect();
     const canvas = document.createElement('canvas');
-    canvas.width = 1200;
+    const scale = 3;
+    canvas.width = Math.ceil(bounds.width * scale);
+    canvas.height = Math.ceil(bounds.height * scale);
     const ctx = canvas.getContext('2d');
-    // Wrap long details rather than clipping them in the downloaded card.
-    const lines = [];
-    for (const field of fields) {
-      if (!current.data[field]) continue;
-      ctx.font = field === 'fullName' ? 'bold 62px sans-serif' : '32px sans-serif';
-      let line = '';
-      for (const char of current.data[field]) {
-        if (ctx.measureText(line + char).width > 1010) { lines.push({ text: line, field }); line = ''; }
+    ctx.scale(scale, scale);
+    const rootStyle = getComputedStyle(card);
+    ctx.beginPath();
+    ctx.roundRect(0, 0, bounds.width, bounds.height, parseFloat(rootStyle.borderRadius));
+    ctx.clip();
+
+    function paintText(node, style) {
+      const range = document.createRange();
+      ctx.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      ctx.fillStyle = style.color;
+      ctx.textBaseline = 'alphabetic';
+      ctx.letterSpacing = style.letterSpacing === 'normal' ? '0px' : style.letterSpacing;
+      const metrics = ctx.measureText('Mg');
+      const ascent = metrics.fontBoundingBoxAscent ?? metrics.actualBoundingBoxAscent;
+      const descent = metrics.fontBoundingBoxDescent ?? metrics.actualBoundingBoxDescent;
+      let line = '', box = null;
+      function flush() {
+        if (!box || !line) return;
+        const baseline = box.top - bounds.top + (box.height - ascent - descent) / 2 + ascent;
+        const text = style.textTransform === 'uppercase' ? line.toLocaleUpperCase()
+          : style.textTransform === 'lowercase' ? line.toLocaleLowerCase() : line;
+        ctx.fillText(text, box.left - bounds.left, baseline);
+      }
+      // Range measurements preserve the browser's word wrapping, including long URLs.
+      for (let offset = 0; offset < node.length;) {
+        const char = String.fromCodePoint(node.textContent.codePointAt(offset));
+        range.setStart(node, offset);
+        offset += char.length;
+        range.setEnd(node, offset);
+        const rect = range.getBoundingClientRect();
+        if (box && Math.abs(rect.top - box.top) > 1) { flush(); line = ''; box = null; }
+        if (!box) box = rect;
         line += char;
       }
-      lines.push({ text: line, field });
+      flush();
     }
-    canvas.height = 1000 + lines.reduce((height, line) => height + (line.field === 'fullName' ? 80 : 48), 0);
-    ctx.fillStyle = '#153f38'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    let y = 100;
-    ctx.fillStyle = '#a4d8c7'; ctx.font = '24px sans-serif'; ctx.fillText("LET'S STAY CONNECTED", 80, y);
-    y += 90;
-    for (const line of lines) {
-      ctx.font = line.field === 'fullName' ? 'bold 62px sans-serif' : '32px sans-serif';
-      ctx.fillStyle = line.field === 'fullName' ? '#ffffff' : '#d6e6df';
-      ctx.fillText(line.text, 80, y); y += line.field === 'fullName' ? 80 : 48;
+    function paint(element) {
+      const style = getComputedStyle(element);
+      if (style.display === 'none' || style.visibility === 'hidden') return;
+      const box = element.getBoundingClientRect();
+      const x = box.left - bounds.left, y = box.top - bounds.top;
+      ctx.fillStyle = style.backgroundColor;
+      ctx.beginPath();
+      ctx.roundRect(x, y, box.width, box.height, parseFloat(style.borderRadius) || 0);
+      ctx.fill();
+      if (element instanceof HTMLCanvasElement) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(element, x, y, box.width, box.height);
+        return;
+      }
+      for (const child of element.childNodes) {
+        if (child.nodeType === Node.TEXT_NODE && child.textContent.trim()) paintText(child, style);
+        else if (child.nodeType === Node.ELEMENT_NODE) paint(child);
+      }
     }
-    y += 20;
-    ctx.fillStyle = '#fff'; ctx.fillRect(260, y, 680, 680);
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage($('qr'), 280, y + 20, 640, 640);
-    ctx.fillStyle = '#d6e6df'; ctx.font = '28px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('Scan to add contact', 600, y + 740);
-    downloadPNG(canvas, '-business-card.png');
+    paint(card);
+    return canvas;
+  }
+  $('download-card').addEventListener('click', async () => {
+    if (!current) return;
+    const snapshot = current;
+    try {
+      await document.fonts.ready;
+      if (current !== snapshot) return;
+      downloadPNG(renderCard($('card')), '-business-card.png');
+    } catch (error) {
+      $('status').textContent = 'Image export failed. Please try downloading your card again.';
+    }
   });
 })();
