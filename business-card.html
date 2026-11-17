@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Create a digital business card with a contact QR code. Generate and download privately in your browser.">
+  <title>Digital Business Card · i-Tabu Tools</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172b35;background:#f2f6f5;line-height:1.5}
+    *{box-sizing:border-box}body{margin:0}main{max-width:1060px;margin:auto;padding:32px 20px 60px}a{color:#126657}header{margin:26px 0 32px}h1{font-size:clamp(2rem,5vw,2.8rem);letter-spacing:-.04em;margin:10px 0}h2{margin-top:0;font-size:1.2rem}p{color:#52646c}.eyebrow{font-size:.75rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#126657}.layout{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}.panel{background:white;border:1px solid #dce5e1;border-radius:20px;padding:28px;box-shadow:0 8px 30px #152f2310}label{display:block;font-size:.9rem;font-weight:650;margin-bottom:6px}input{display:block;width:100%;font:inherit;border:1px solid #b8c9c2;border-radius:9px;padding:11px 12px;background:#fcfefd;color:#172b35}input:focus{outline:3px solid #a8ded2;border-color:#126657}.field{margin-bottom:18px}small,.help{font-size:.84rem;color:#52646c}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}button{font:inherit;font-weight:650;cursor:pointer;border:1px solid #126657;background:#126657;color:white;border-radius:9px;padding:11px 16px}button.secondary{background:white;color:#126657}button:disabled{opacity:.5;cursor:default}button:focus-visible,a:focus-visible{outline:3px solid #e6ab37;outline-offset:3px}.card{background:#153f38;border-radius:16px;color:white;padding:28px;overflow-wrap:anywhere}.card h2{font-size:1.9rem;margin:14px 0 2px;letter-spacing:-.03em}.card p{color:#d6e6df;margin:4px 0}.card .details{margin:22px 0;font-size:.92rem}.qr-wrap{background:white;border-radius:12px;padding:16px;text-align:center;color:#172b35}.qr-wrap canvas{display:block;max-width:100%;height:auto;margin:auto;image-rendering:pixelated}.qr-wrap small{display:block;margin-top:10px}#empty{padding:50px 8px;text-align:center}#status{min-height:1.5em;font-size:.9rem}footer{margin-top:32px;font-size:.85rem;display:flex;gap:20px}[hidden]{display:none!important}@media(max-width:720px){.layout{grid-template-columns:1fr}.panel{padding:22px}main{padding-top:20px}}
+  </style>
+  <script src="vendor/qrcode.js" defer></script>
+  <script src="vendor/qrcode_UTF8.js" defer></script>
+  <script src="business-card.js" defer></script>
+</head>
+<body>
+<main>
+  <a href="index.html">← All tools</a>
+  <header><div class="eyebrow">A better first hello</div><h1>Your next connection,<br>one scan away.</h1><p>Fill in your details. Create a business card. Let your QR code do the introductions.</p></header>
+  <div class="layout">
+    <section class="panel" aria-labelledby="form-title">
+      <h2 id="form-title">Your contact details</h2>
+      <p class="help">Name and at least one phone number or email are required.</p>
+      <form id="contact-form">
+        <div class="field"><label for="fullName">Full name *</label><input id="fullName" name="fullName" autocomplete="name" maxlength="100" placeholder="Tabu Shaikh" required></div>
+        <div class="field"><label for="occupation">Occupation / job title</label><input id="occupation" name="occupation" autocomplete="organization-title" maxlength="100" placeholder="Co-founder"></div>
+        <div class="field"><label for="company">Company</label><input id="company" name="company" autocomplete="organization" maxlength="120" placeholder="Symbolists Technology"></div>
+        <div class="field"><label for="mobile">Mobile</label><input id="mobile" name="mobile" type="tel" autocomplete="tel" maxlength="40" placeholder="+91-9819707024" aria-describedby="phone-help"><small id="phone-help">Include your country code for international contacts.</small></div>
+        <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" maxlength="150" placeholder="tabu@symbolist.technology"></div>
+        <div class="field"><label for="website">Website</label><input id="website" name="website" type="url" autocomplete="url" maxlength="250" placeholder="https://symbolist.technology"></div>
+        <div class="actions"><button type="submit">Generate business card</button><button class="secondary" type="button" id="example">Try example</button><button class="secondary" type="reset">Clear</button></div>
+      </form>
+      <p class="help">Your details stay in this browser. Nothing is uploaded or stored.</p>
+    </section>
+    <section class="panel" aria-labelledby="preview-title">
+      <h2 id="preview-title">Your business card</h2>
+      <div id="empty"><div class="eyebrow">Ready when you are</div><p>Your card and contact QR code will appear here.</p></div>
+      <div id="result" hidden>
+        <div class="card" id="card"><div class="eyebrow" style="color:#a4d8c7">Let's stay connected</div><h2 id="card-name"></h2><p id="card-occupation"></p><p id="card-company"></p><div class="details"><p id="card-mobile"></p><p id="card-email"></p><p id="card-website"></p></div><div class="qr-wrap"><canvas id="qr" role="img" aria-label="Scan to add this contact"></canvas><small>Scan to add contact</small></div></div>
+        <div class="actions"><button id="download-card" type="button">Download card (PNG)</button><button id="download-qr" type="button" class="secondary">Download QR</button><button id="download-vcf" type="button" class="secondary">Save contact (.vcf)</button></div>
+        <p class="help">Scan with a compatible camera or QR scanner, then confirm “Add contact”. Support varies by phone; the .vcf file can also be opened in a contacts app.</p>
+      </div>
+      <p id="status" role="status" aria-live="polite"></p>
+    </section>
+  </div>
+  <footer><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></footer>
+</main>
+</body>
+</html>
