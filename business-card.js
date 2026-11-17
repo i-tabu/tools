@@ -165,6 +165,36 @@
     paint(card);
     return canvas;
   }
+  $('share-card').addEventListener('click', async () => {
+    if (!current) return;
+    const snapshot = current;
+    const button = $('share-card');
+    button.disabled = true;
+    try {
+      await document.fonts.ready;
+      if (current !== snapshot) return;
+      const blob = await new Promise(resolve => renderCard($('card')).toBlob(resolve, 'image/png'));
+      if (current !== snapshot) return;
+      if (!blob) throw new Error('Image export failed');
+      const name = snapshot.data.fullName.replace(/[^\p{L}\p{N} -]/gu, '').trim() || 'contact';
+      const file = new File([blob], name + '-business-card.png', { type: 'image/png' });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: snapshot.data.fullName + ' · Business card' });
+          if (current === snapshot) $('status').textContent = 'Business card shared.';
+          return;
+        } catch (error) {
+          if (error.name === 'AbortError' || current !== snapshot) return;
+        }
+      }
+      download(blob, '-business-card.png');
+      $('status').textContent = 'Image sharing is unavailable here. Your card has been downloaded so you can share it.';
+    } catch (error) {
+      if (current === snapshot) $('status').textContent = 'Could not share your card. Please try again.';
+    } finally {
+      button.disabled = false;
+    }
+  });
   $('download-card').addEventListener('click', async () => {
     if (!current) return;
     const snapshot = current;
