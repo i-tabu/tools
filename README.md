@@ -26,3 +26,11 @@ DEMO -> [https://i-tabu.github.io/request](https://i-tabu.github.io/request)
 
 ----
 [Check deployments](https://github.com/i-tabu/tools/deployments)
+
+## Digital Business Card
+
+Enter your name, occupation, company, mobile, email, and website to generate a business card with a vCard 3.0 QR code. A name and at least one phone number or email are required. Scan with a compatible phone and confirm adding the contact, or download the .vcf file directly. Card and QR PNG downloads are available. Contact details are processed locally without storage or uploads.
+
+Open [Digital Business Card](https://tools.itabu.xyz/business-card.html).
+
+QR generation uses the vendored MIT-licensed qrcode-generator 1.4.4 library by Kazuhiko Arase (including its UTF-8 extension); see vendor/qrcode.LICENSE.
