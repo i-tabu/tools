@@ -4,6 +4,10 @@ Changes included in this version of i-tabu Tools. Dates below are commit dates; 
 
 ## 2026-11-17
 
+- Add repository agent instructions requiring a changelog entry for every change.
+- Add content-based cache versions for all pages and local scripts/styles, plus a deployed-version check that reloads stale pages on load while preserving query parameters and fragments.
+- Add a cache-update script and CI check to detect missing version updates.
+
 - Add this changelog and a home-page history icon to view the changelog shipped with the site.
 
 ## 2026-09-08
