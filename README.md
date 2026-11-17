@@ -34,3 +34,9 @@ Enter your name, occupation, company, mobile, email, and website to generate a b
 Open [Digital Business Card](https://tools.itabu.xyz/business-card.html).
 
 QR generation uses the vendored MIT-licensed qrcode-generator 1.4.4 library by Kazuhiko Arase (including its UTF-8 extension); see vendor/qrcode.LICENSE.
+
+## Updating the site
+
+Update `CHANGELOG.md` for every change, then run `python3 scripts/update_cache.py` and commit its generated changes. Run `python3 scripts/update_cache.py --check` to verify that the release manifest, page stamps, and local asset URLs match the current repository contents. CI performs the same check.
+
+On page load, the inline version check fetches `site-version.json` without browser caching and with a unique request URL. A newer release redirects once to a versioned page URL, preserving other query parameters and the fragment. Local scripts and styles use versioned URLs too. The check fails silently when offline and does not reload tools while you are editing them. Existing visitors may need one hard refresh after this mechanism is first deployed; subsequent releases are detected on page load. GitHub Pages deployment/CDN propagation must finish before any new release can appear.

@@ -2,6 +2,28 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+<!-- site-version:start -->
+<script>
+(() => {
+  if (!/^https?:$/.test(location.protocol)) return;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4000);
+  const manifest = new URL("site-version.json", location.href);
+  manifest.searchParams.set('_', Date.now());
+  fetch(manifest, { cache: 'no-store', signal: controller.signal })
+    .then(response => { if (!response.ok) throw new Error('Version unavailable'); return response.json(); })
+    .then(({ version }) => {
+      if (!/^[a-f0-9]{16}$/.test(version) || version === '635d3d31ad5a55c9') return;
+      const url = new URL(location.href);
+      if (url.searchParams.get('v') === version) return;
+      url.searchParams.set('v', version);
+      location.replace(url.href);
+    })
+    .catch(() => {})
+    .finally(() => clearTimeout(timeout));
+})();
+</script>
+<!-- site-version:end -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Create a digital business card with a contact QR code. Generate and download privately in your browser.">
   <title>Digital Business Card · i-Tabu Tools</title>
@@ -10,9 +32,9 @@
     *{box-sizing:border-box}body{margin:0}main{max-width:1060px;margin:auto;padding:32px 20px 60px}a{color:#126657}header{margin:26px 0 32px}h1{font-size:clamp(2rem,5vw,2.8rem);letter-spacing:-.04em;margin:10px 0}h2{margin-top:0;font-size:1.2rem}p{color:#52646c}.eyebrow{font-size:.75rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#126657}.layout{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}.panel{background:white;border:1px solid #dce5e1;border-radius:20px;padding:28px;box-shadow:0 8px 30px #152f2310}label{display:block;font-size:.9rem;font-weight:650;margin-bottom:6px}input{display:block;width:100%;font:inherit;border:1px solid #b8c9c2;border-radius:9px;padding:11px 12px;background:#fcfefd;color:#172b35}input:focus{outline:3px solid #a8ded2;border-color:#126657}.field{margin-bottom:18px}small,.help{font-size:.84rem;color:#52646c}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}button{font:inherit;font-weight:650;cursor:pointer;border:1px solid #126657;background:#126657;color:white;border-radius:9px;padding:11px 16px}button.secondary{background:white;color:#126657}button:disabled{opacity:.5;cursor:default}button:focus-visible,a:focus-visible{outline:3px solid #e6ab37;outline-offset:3px}.card{background:#153f38;border-radius:16px;color:white;padding:28px;overflow-wrap:anywhere}.card h2{font-size:1.9rem;margin:14px 0 2px;letter-spacing:-.03em}.card p{color:#d6e6df;margin:4px 0}.card .details{margin:22px 0;font-size:.92rem}.qr-wrap{background:white;border-radius:12px;padding:16px;text-align:center;color:#172b35}.qr-wrap canvas{display:block;max-width:100%;height:auto;margin:auto;image-rendering:pixelated}.qr-wrap small{display:block;margin-top:10px}#empty{padding:50px 8px;text-align:center}#status{min-height:1.5em;font-size:.9rem}footer{margin-top:32px;font-size:.85rem;display:flex;gap:20px}[hidden]{display:none!important}@media(max-width:720px){.layout{grid-template-columns:1fr}.panel{padding:22px}main{padding-top:20px}}
     .card-frame{position:relative}.card-frame .eyebrow{padding-right:38px}.share-card{position:absolute;top:16px;right:16px;z-index:1;display:grid;place-items:center;width:44px;height:44px;padding:10px;border:1px solid #a4d8c766;border-radius:50%;background:#153f38;color:#d6e6df}.share-card:hover{background:#24594e}.share-card svg{width:22px;height:22px;pointer-events:none}
   </style>
-  <script src="vendor/qrcode.js" defer></script>
-  <script src="vendor/qrcode_UTF8.js" defer></script>
-  <script src="business-card.js" defer></script>
+  <script src="vendor/qrcode.js?v=635d3d31ad5a55c9" defer></script>
+  <script src="vendor/qrcode_UTF8.js?v=635d3d31ad5a55c9" defer></script>
+  <script src="business-card.js?v=635d3d31ad5a55c9" defer></script>
 </head>
 <body>
 <main>
